@@ -1,0 +1,15 @@
+export const positions = [
+  { code: "PO", name: "Arquero" },
+  { code: "CT", name: "Defensor Central" },
+  { code: "LD", name: "Lateral Derecho" },
+  { code: "LI", name: "Lateral Izquierdo" },
+  { code: "MCD", name: "Mediocampista Defensivo" },
+  { code: "MC", name: "Mediocampista Central" },
+  { code: "MO", name: "Mediocampista Ofensivo" },
+  { code: "MD", name: "Mediocampista Derecho" },
+  { code: "MI", name: "Mediocampista Izquierdo" },
+  { code: "ED", name: "Extremo Derecho" },
+  { code: "EI", name: "Extremo Izquierdo" },
+  { code: "DC", name: "Delantero Centro" },
+  { code: "SD", name: "Segundo Delantero" },
+];

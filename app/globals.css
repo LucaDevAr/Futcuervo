@@ -1,26 +1,437 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+body {
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Utilidades personalizadas */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Variables base (Default Theme) */
+@layer base {
+  :root {
+    /* Default */
+    --radius: 0.5rem;
+    /* --primary-dark: #0a8fff; */
+    --primary: #10c500;
+    --secondary: #222;
+    --white: #ffffff;
+    --black: #000000;
+    --accent: #f0f0f0;
+
+    /* Componente específico */
+    --home-card-bg: var(--primary);
+    --home-card-bg-2: var(--secondary);
+    --background: var(--white);
+    --text: var(--black);
+    --navbar-bg: var(--primary);
+    --navbar-text: var(--white);
+    --navbar-button-bg: var(--secondary);
+    --navbar-button-bg-hover: var(--white);
+    --navbar-button-text: var(--white);
+    --navbar-button-text-hover: var(--secondary);
+    --footer-bg: #111;
+    --footer-text: var(--white);
+    --footer-button-bg: var(--primary);
+    --footer-button-bg-hover: var(--white);
+    --footer-button-text: var(--white);
+    --footer-button-text-hover: var(--primary);
+  }
+
+  .dark {
+    --home-card-bg: var(--secondary);
+    --home-card-bg-2: var(--primary);
+    --background: #111;
+    --text: var(--white);
+    --navbar-bg: var(--secondary);
+    --navbar-text: var(--white);
+    --navbar-button-bg: var(--primary);
+    --navbar-button-bg-hover: var(--white);
+    --navbar-button-text: var(--white);
+    --navbar-button-text-hover: var(--primary);
+    --footer-bg: var(--white);
+    --footer-text: var(--black);
+    --footer-button-bg: var(--white);
+    --footer-button-bg-hover: var(--white);
+    --footer-button-text: var(--white);
+    --footer-button-text-hover: var(--white);
+  }
+
+  /* Clubes */
+  [data-club="futcuervo"] {
+    --primary: #063c71;
+    --primary-dark: #002a56;
+    --secondary: #dc143c;
+    --white: #ffffff;
+    --black: #000000;
+    --accent: #f0f0f0;
+
+    --home-card-bg: var(--primary);
+    --home-card-bg-2: var(--secondary);
+    --home-stat-bg: var(--secondary);
+    --home-stat-bg-2: var(--primary);
+    --home-stat-text: var(--white);
+    --home-card-text: var(--white);
+    --home-button-bg: var(--secondary);
+    --home-button-text: var(--primary);
+    --home-button-bg-2: var(--secondary);
+    --home-button-text-2: var(--primary);
+    --text: var(--black);
+    --panel-screen-bg: var(--primary);
+    --panel-screen-card-bg: var(--secondary);
+    --background: var(--white);
+    --text: var(--black);
+    --navbar-bg: var(--secondary);
+    --navbar-text: var(--white);
+    --navbar-button-bg: var(--primary);
+    --navbar-button-bg-hover: var(--white);
+    --navbar-button-text: var(--white);
+    --navbar-button-text-hover: var(--primary);
+    --footer-bg: var(--black);
+    --footer-text: var(--white);
+    --footer-button-bg: var(--primary);
+    --footer-button-bg-hover: var(--white);
+    --footer-button-text: var(--white);
+    --footer-button-text-hover: var(--primary);
+    --dt-border: var(--primary);
+  }
+
+  .dark [data-club="futcuervo"] {
+    --primary: #063c71;
+    --primary-dark: #0b172a;
+    --secondary: #dc143c;
+    --white: #ffffff;
+    --black: #000000;
+    --accent: #f0f0f0;
+
+    --home-card-bg: var(--secondary);
+    --home-card-bg-2: var(--primary);
+    --home-stat-bg: var(--primary);
+    --home-stat-bg-2: var(--secondary);
+    --home-stat-text: var(--white);
+    --home-card-text: var(--white);
+    --home-button-bg: var(--secondary);
+    --home-button-text: var(--primary);
+    --home-button-bg-2: var(--secondary);
+    --home-button-text-2: var(--primary);
+    --text: var(--black);
+    --panel-screen-bg: var(--secondary);
+    --panel-screen-card-bg: var(--primary);
+    --background: var(--primary-dark); /* azul oscuro como base */
+    --text: var(--white);
+    --navbar-bg: var(--primary);
+    --navbar-text: var(--white);
+    --navbar-button-bg: var(--secondary);
+    --navbar-button-bg-hover: var(--white);
+    --navbar-button-text: var(--white);
+    --navbar-button-text-hover: var(--secondary);
+    --footer-bg: var(--black);
+    --footer-text: var(--white);
+    --footer-button-bg: var(--secondary);
+    --footer-button-bg-hover: var(--white);
+    --footer-button-text: var(--white);
+    --footer-button-text-hover: var(--secondary);
+    --dt-border: var(--secondary);
+  }
+
+  [data-club="futmerengue"] {
+    --primary: #ffffff;
+    --primary-dark: #f0f0f0;
+    --secondary: #ffc107;
+    --accent: #00529f;
+    --text-color: #000000;
+    --text-color-light: #333333;
+
+    /* Amarillo siempre para navbar/footer */
+    --home-card-bg: #111;
+    --home-card-bg-2: #111;
+    --home-stat-bg: var(--secondary);
+    --home-stat-bg-2: var(--secondary);
+    --home-stat-text: var(--primary);
+    --home-card-text: var(--white);
+    --home-card-text: var(--white);
+    --home-button-bg: var(--secondary);
+    --home-button-text: var(--primary);
+    --home-button-bg-2: var(--secondary);
+    --home-button-text-2: var(--primary);
+    --text: var(--black);
+    --navbar-bg: var(--secondary);
+    --navbar-text: var(--primary);
+    --navbar-text-tooltip: var(--secondary);
+    --navbar-button-bg: var(--primary);
+    --navbar-button-bg-hover: var(--secondary);
+    --navbar-button-text: var(--secondary);
+    --navbar-button-text-hover: var(--primary);
+    --footer-bg: var(--black);
+    --footer-text: var(--white);
+    --footer-button-bg: var(--primary);
+    --footer-button-bg-hover: var(--white);
+    --footer-button-text: var(--white);
+    --footer-button-text-hover: var(--primary);
+    --dt-border: var(--primary);
+  }
+
+  .dark [data-club="futmerengue"] {
+    --primary: #ffffff;
+    --primary-dark: #f0f0f0;
+    --secondary: #ffc107;
+    --accent: #00529f;
+    --text-color: #000000;
+    --text-color-light: #333333;
+
+    /* Amarillo siempre para navbar/footer */
+    --home-card-bg: var(--primary);
+    --home-card-bg-2: var(--primary);
+    --home-stat-bg: var(--secondary);
+    --home-stat-bg-2: var(--secondary);
+    --home-stat-text: var(--primary);
+    --home-card-text: var(--black);
+    --home-card-text-2: var(--black);
+    --text: var(--white);
+    --navbar-bg: var(--primary);
+    --navbar-text: var(--secondary);
+    --navbar-text-tooltip: var(--primary);
+    --navbar-button-bg: var(--secondary);
+    --navbar-button-bg-hover: var(--white);
+    --navbar-button-text: var(--white);
+    --navbar-button-text-hover: var(--secondary);
+    --footer-bg: var(--black);
+    --footer-text: var(--white);
+    --footer-button-bg: var(--secondary);
+    --footer-button-bg-hover: var(--white);
+    --footer-button-text: var(--white);
+    --footer-button-text-hover: var(--secondary);
+    --dt-border: var(--secondary);
+  }
+
+  [data-club="barcelona"] {
+    --primary: #a50044;
+    --primary-dark: #6a0030;
+    --secondary: #003399;
+    --accent: #ffcc00;
+    --text-color: #ffffff;
+    --text-color-light: #f9fafb;
+
+    --navbar-bg: var(--primary);
+    --navbar-bg-dark: var(--secondary);
+    --footer-bg: var(--primary);
+    --footer-bg-dark: var(--secondary);
+    --button-bg: var(--accent);
+    --button-bg-dark: var(--accent);
+  }
+}
+
+/* @layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --azul: #003f7f;
+    --azul-oscuro: #002a56;
+    --azul-grid: #063c71;
+    --rojo: #dc143c;
+    --rojo-oscuro: #b01030;
+    --azul-rgb: 0, 96, 166;
+    --rojo-rgb: 190, 0, 57;
+    --blanco: #ffffff;
+    --negro: #000000;
+    --gris-claro: #f9fafb;
+    --gris: #6b7280;
+    --gris-oscuro: #374151;
+    --fondo-oscuro: #0b172a;
+
+    --transparente-blanco: rgba(255, 255, 255, 0.2);
+    --transparente-negro: rgba(0, 0, 0, 0.2);
+    --barra-progreso: #dedede;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+} */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Estilo base del input tipo range */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+/* Para navegadores WebKit (Chrome, Safari) */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: var(--rojo);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+  margin-top: -11px; /* Ajustar según altura de barra */
+}
+
+/* Para Firefox */
+input[type="range"]::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: var(--rojo);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Opcional: Cambiar estilo del track (la barra completa) */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.dark input[type="range"]::-webkit-slider-thumb {
+  background: var(--azul);
+}
+
+/* Para Firefox */
+.dark input[type="range"]::-moz-range-thumb {
+  background: var(--azul);
+}
+/* Bloquear scroll del body cuando modal está abierto */
+.modal-open {
+  overflow: hidden;
+}
+
+/* Scroll interno para pantallas grandes */
+.internal-scroll {
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+/* Scroll del modal para pantallas pequeñas */
+.modal-scroll {
+  overflow-y: auto;
+}
+
+.my-masonry-grid {
+  display: -webkit-box; /* Not needed if autoprefixing */
+  display: -ms-flexbox; /* Not needed if autoprefixing */
+  display: flex;
+  margin-left: -30px; /* gutter size offset */
+  width: auto;
+}
+
+.my-masonry-grid_column {
+  padding-left: 30px; /* gutter size */
+  background-clip: padding-box;
+}
+
+/* Style your items */
+.my-masonry-grid_column > div {
+  /* change div to reference your elements you put in <Masonry> */
+  background: grey;
+  margin-bottom: 30px;
+}
+
+/* Scrollbars, sliders, etc. */
+input[type="range"]::-webkit-slider-thumb {
+  background: var(--primary);
+}
+input[type="range"]::-moz-range-thumb {
+  background: var(--primary);
+}
+.dark input[type="range"]::-webkit-slider-thumb {
+  background: var(--primary-dark);
+}
+.dark input[type="range"]::-moz-range-thumb {
+  background: var(--primary-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--primary-dark);
 }

@@ -1,0 +1,96 @@
+export const GAME_ITEMS = [
+  {
+    title: "Equipo nacional",
+    color: "var(--azul)",
+    icon: "nacional",
+    path: "/games/national-team",
+    gameType: "national",
+  },
+  {
+    title: "Equipo internacional",
+    color: "var(--rojo)",
+    icon: "internacional",
+    path: "/games/league-team",
+    gameType: "league",
+  },
+  {
+    title: "Camiseta",
+    color: "var(--azul)",
+    icon: "camiseta",
+    path: "/games/shirt",
+    gameType: "shirt",
+  },
+  {
+    title: "Jugador",
+    color: "var(--rojo)",
+    icon: "jugador",
+    path: "/games/player",
+    gameType: "player",
+  },
+  {
+    title: "Historia",
+    color: "var(--azul)",
+    icon: "historia",
+    path: "/games/history",
+    gameType: "history",
+  },
+  {
+    title: "Video",
+    color: "var(--rojo)",
+    icon: "video",
+    path: "/games/video",
+    gameType: "video",
+  },
+  {
+    title: "Trayectoria",
+    color: "var(--azul)",
+    icon: "trayectoria",
+    path: "/games/career",
+    gameType: "career",
+  },
+  {
+    title: "Mas o menos presencias",
+    color: "var(--rojo)",
+    icon: "presencias",
+    path: "/games/appearances",
+    gameType: "appearances",
+  },
+  {
+    title: "Mas o menos goles",
+    color: "var(--azul)",
+    icon: "goles",
+    path: "/games/goals",
+    gameType: "goals",
+  },
+  {
+    title: "Cancion",
+    color: "var(--rojo)",
+    icon: "cancion",
+    path: "/games/song",
+    gameType: "song",
+  },
+];
+
+export const STREAK_GAMES = [
+  "player",
+  "shirt",
+  "song",
+  "career",
+  "video",
+  "history",
+  "national",
+  "league",
+];
+
+export const GAME_TYPES = {
+  NATIONAL: "national",
+  LEAGUE: "league",
+  SHIRT: "shirt",
+  PLAYER: "player",
+  HISTORY: "history",
+  VIDEO: "video",
+  CAREER: "career",
+  APPEARANCES: "appearances",
+  GOALS: "goals",
+  SONG: "song",
+};
