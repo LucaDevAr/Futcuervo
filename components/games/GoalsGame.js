@@ -17,12 +17,6 @@ export const dynamic = "force-dynamic";
 export default function GoalsGame({ clubId, homeUrl }) {
   const [gameMode, setGameMode] = useState("normal");
 
-  const {
-    players: allPlayers,
-    isLoading: dataLoading,
-    error: dataError,
-  } = useGameDataPreload("goals", clubId);
-
   const user = useUserStore((state) => state.user);
 
   const userAttempts = useGameAttempts(clubId);
@@ -33,6 +27,23 @@ export default function GoalsGame({ clubId, homeUrl }) {
   const wasPlayedToday = attempts?.wasPlayedToday?.("goals") || false;
   const getLastAttempt = () => attempts?.getLastAttempt?.("goals") || null;
   const attemptsLoading = user ? userAttempts.isLoading : false;
+
+  const attemptsAreLoaded = attemptsLoading === false; // si user -> useGameAttempts, si local -> siempre true
+
+  const shouldSkipPreload = attemptsAreLoaded && wasPlayedToday;
+
+  const {
+    players: allPlayers,
+    isLoading: dataLoading,
+    error: dataError,
+  } = useGameDataPreload({
+    needPlayers: true,
+    needClubs: false,
+    needLeagues: false,
+    needCoaches: false,
+    clubId, // opcional
+    skip: shouldSkipPreload,
+  });
 
   const goalsGame = useGoalsGame({
     gameMode,

@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Use the same configuration as api.js to ensure consistency
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: `${process.env.NEXT_PUBLIC_BASE_URL}/api`,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

@@ -26,21 +26,13 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
   const isMobile = useMediaQuery({ maxWidth: 767 });
 
   const {
-    players: preloadedPlayers,
-    clubs: preloadedClubs,
-    leagues: preloadedLeagues,
-    coaches: preloadedCoaches,
-    isLoading: dataLoading,
-    error: dataError,
-  } = useGameDataPreload("league-team", clubId);
-
-  const {
     wasPlayedToday: wasPlayedTodayServer,
     getLastAttempt: getLastAttemptServer,
     isLoading: attemptsLoading,
   } = useGameAttempts(clubId);
 
   const localGameAttemptsHook = useLocalGameAttempts(clubId);
+
   const user = useUserStore?.((state) => state.user) || null;
 
   const attempts = user
@@ -51,8 +43,30 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
     : localGameAttemptsHook;
 
   const wasPlayedToday = attempts?.wasPlayedToday?.("league") || false;
+  const attemptsAreLoaded = attemptsLoading === false; // si user -> useGameAttempts, si local -> siempre true
+
+  const shouldSkipPreload = attemptsAreLoaded && wasPlayedToday;
+
+  const {
+    players: preloadedPlayers,
+    clubs: preloadedClubs,
+    leagues: preloadedLeagues,
+    coaches: preloadedCoaches,
+    isLoading: dataLoading,
+    error: dataError,
+  } = useGameDataPreload({
+    needPlayers: true,
+    needClubs: true,
+    needLeagues: true,
+    needCoaches: true,
+    clubId, // opcional
+    skip: shouldSkipPreload,
+  });
+
   const getLastAttempt = () => attempts?.getLastAttempt?.("league") || null;
+
   const lastAttempt = getLastAttempt();
+
   const hasPlayedToday = wasPlayedToday;
 
   const gameLogic = useGameLogic({

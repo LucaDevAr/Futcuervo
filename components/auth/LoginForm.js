@@ -26,18 +26,21 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-        credentials: "include", // necesario para cookie de sesión
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+          credentials: "include",
+        }
+      );
 
       const data = await res.json();
+
       if (!res.ok) {
         setError(data.error || "Error al iniciar sesión");
       } else {
-        // guardamos user en zustand + localStorage
         if (data.user) {
           setUser(data.user);
           localStorage.setItem("userFallback", JSON.stringify(data.user));
@@ -52,7 +55,7 @@ export default function LoginForm() {
   };
 
   const handleGoogleSignIn = () => {
-    window.location.href = "http://localhost:5000/api/auth/google";
+    window.location.href = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/google`;
   };
 
   return (

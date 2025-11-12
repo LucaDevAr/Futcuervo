@@ -1,80 +1,54 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
 
-// Create axios instance with default config
+// Crear instancia de axios
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true, // Important for cookies
+  baseURL: API_BASE_URL + "/api", // 👈 Aca agregamos el /api
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Request interceptor for debugging
-api.interceptors.request.use(
-  (config) => {
-    console.log("[v0] API request:", config);
-    return config;
-  },
-  (error) => {
-    console.error("[v0] API request error:", error);
-    return Promise.reject(error);
-  }
-);
+// Debug
+api.interceptors.request.use((config) => {
+  console.log("[v0] API request:", config.method, config.url);
+  return config;
+});
 
-// Response interceptor for debugging
 api.interceptors.response.use(
-  (response) => {
-    console.log("[v0] API response received:", {
-      status: response.status,
-      url: response.config.url,
-      data: response.data,
-    });
-    return response;
-  },
+  (response) => response,
   (error) => {
-    console.error("[v0] API response error:", error);
+    console.error(
+      "[v0] API response error:",
+      error.response?.status,
+      error.response?.data
+    );
     return Promise.reject(error);
   }
 );
 
+// Endpoints
 export const fetchUserSession = async () => {
-  try {
-    console.log("[v0] fetchUserSession called");
-    const response = await api.get("/auth/session");
-    return response.data;
-  } catch (error) {
-    console.error("[v0] fetchUserSession error:", error);
-    throw error;
-  }
+  const res = await api.get("/auth/session");
+  return res.data;
 };
 
 export const loginUser = async (credentials) => {
-  try {
-    const response = await api.post("/auth/login", credentials);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const res = await api.post("/auth/login", credentials);
+  return res.data;
 };
 
 export const registerUser = async (userData) => {
-  try {
-    const response = await api.post("/auth/register", userData);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const res = await api.post("/auth/register", userData);
+  return res.data;
 };
 
 export const logoutUser = async () => {
-  try {
-    const response = await api.post("/auth/logout");
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const res = await api.post("/auth/logout");
+  return res.data;
 };
 
 export default api;

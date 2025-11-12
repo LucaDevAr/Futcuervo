@@ -9,7 +9,7 @@ import GameScreen from "@/components/screens/GameScreen";
 import EndScreen from "@/components/screens/EndScreen";
 import MediaRenderer from "@/components/media/MediaRenderer";
 import LoadingScreen from "@/components/ui/loading-screen";
-import { useGameLogic } from "@/hooks/use-game-logic";
+import { useGameLogic } from "@/hooks/games/useGameLogic";
 import { GAME_CONFIGS } from "@/constants/gameConfig";
 import {
   useGameProgressStore,

@@ -1,7 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
-import AudioProvider from "@/components/audio/AudioProvider";
 import Navbar from "@/components/layout/Navbar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useUserSession } from "@/hooks/auth/useUserSession";
@@ -17,14 +17,11 @@ const PlayerModal = dynamic(() => import("@/components/audio/PlayerModal"), {
   ssr: false,
 });
 
-const queryClient = new QueryClient();
-
 function SessionInitializer() {
   useUserSession();
   return null;
 }
 
-// 🔥 NUEVO COMPONENTE que usa los hooks DENTRO del provider
 function InitGameState() {
   useInitialGameAttempts();
   useInitialDailyGames();
@@ -33,6 +30,7 @@ function InitGameState() {
 
 export default function ClientProviders({ children }) {
   const pathname = usePathname();
+  const [queryClient] = useState(() => new QueryClient()); // ✅ QueryClient estable
 
   const isAdminRoute = pathname?.startsWith("/admin");
   const isAuthRoute = pathname?.startsWith("/auth");
@@ -61,31 +59,25 @@ export default function ClientProviders({ children }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* ✅ Ahora estos hooks sí tienen QueryClient */}
       <InitGameState />
-      <AudioProvider>
-        <SessionInitializer />
+      <SessionInitializer />
 
-        <div
-          data-club={dataClub}
-          className="bg-[var(--background)] min-h-screen"
-        >
-          {!isAdminRoute && !isAuthRoute && navbarProps && (
-            <Navbar {...navbarProps} />
-          )}
+      <div data-club={dataClub} className="bg-[var(--background)] min-h-screen">
+        {!isAdminRoute && !isAuthRoute && navbarProps && (
+          <Navbar {...navbarProps} />
+        )}
 
-          <main className="pt-[56px] md:pt-[64px] min-h-screen h-full">
-            {children}
-          </main>
+        <main className="pt-[56px] md:pt-[64px] min-h-screen h-full">
+          {children}
+        </main>
 
-          {!isAdminRoute && !isAuthRoute && (
-            <>
-              <MiniPlayer />
-              <PlayerModal />
-            </>
-          )}
-        </div>
-      </AudioProvider>
+        {!isAdminRoute && !isAuthRoute && (
+          <>
+            <MiniPlayer />
+            <PlayerModal />
+          </>
+        )}
+      </div>
     </QueryClientProvider>
   );
 }

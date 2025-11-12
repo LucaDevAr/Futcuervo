@@ -19,7 +19,7 @@ export const useClubs = () => {
       try {
         console.log("[v0] useClubs - Starting fetch");
         const apiUrl =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+          process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:5000";
         console.log("[v0] useClubs - API URL:", apiUrl);
 
         // Check localStorage first
