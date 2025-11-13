@@ -2,6 +2,7 @@ import React from "react";
 import { GoogleAdsScript } from "@/components/GoogleAdsScript";
 import "./globals.css";
 import ClientProviders from "@/components/ClientProviders";
+import { Analytics } from "@vercel/analytics/react"; // 👈 agrega esto
 
 export const metadata = {
   title: "FutCuervo - Juegos y Preguntas sobre San Lorenzo",
@@ -86,8 +87,11 @@ export default function RootLayout({ children }) {
       </head>
       <body>
         <ClientProviders>{children}</ClientProviders>
-        {/* Cargamos GoogleAdsScript solo si existe window */}
+        {/* Google Ads Script solo en cliente */}
         {typeof window !== "undefined" && <GoogleAdsScript />}
+
+        {/* 👇 Agregamos el componente de analíticas de Vercel */}
+        <Analytics />
       </body>
     </html>
   );
