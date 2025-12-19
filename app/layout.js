@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 export const metadata = {
   title: "FutCuervo",
   description:
-    "FutCuervo es el sitio de trivias, juegos y curiosidades sobre San Lorenzo de Almagro: jugadores, camisetas, técnicos, canciones, equipos y mucho más.",
+    "FutCuervo es el sitio de trivias, juegos y curiosidades sobre San Lorenzo de Almagro: jugadores, camisetas, técnicos, historias, canciones, equipos y mucho más.",
   keywords: [
     "San Lorenzo",
     "FutCuervo",
