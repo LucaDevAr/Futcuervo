@@ -437,7 +437,7 @@ export default function VideoGameCalendarPage() {
                   gameId={selectedGame._id}
                   initialClipStart={selectedGame.clipStart || 0}
                   initialClipEnd={selectedGame.clipEnd || 10}
-                  initialAnswerStart={selectedGame.answerStart || 10}
+                  initialAnswerStart={selectedGame.answerStart || 0}
                   initialAnswerEnd={selectedGame.answerEnd || 20}
                   onSave={() => fetchGames(calendarClubFilter)}
                 />

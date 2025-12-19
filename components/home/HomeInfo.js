@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 
 export function HomeInfo() {
@@ -38,6 +36,7 @@ export function HomeInfo() {
         <h2 className="text-xl font-bold text-[var(--azul)] dark:text-[var(--rojo)] mb-4">
           ¿Cómo se juega?
         </h2>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <Image
             src="/images/preview-player.png"
@@ -61,6 +60,7 @@ export function HomeInfo() {
             className="rounded-lg shadow-md"
           />
         </div>
+
         <p className="text-sm sm:text-base text-gray-700 dark:text-gray-300 max-w-2xl mx-auto">
           Podés ver las reglas y mecánicas detalladas de cada modo de juego en
           la sección <strong>Guía</strong> del menú superior. Ahí encontrarás

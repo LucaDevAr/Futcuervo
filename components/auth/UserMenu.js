@@ -1,71 +1,68 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import Link from "next/link";
-import { User, LogIn, UserPlus, LogOut, UserCog, BookOpen } from "lucide-react";
+import {
+  User,
+  LogIn,
+  UserPlus,
+  LogOut,
+  UserCog,
+  BookOpen,
+  CircleUserRound,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUserSession } from "@/hooks/auth/useUserSession";
 import { useUserStore } from "@/stores/userStore";
 
-export default function UserMenu({ isDarkMode }) {
+export default function UserMenu() {
   const user = useUserStore((state) => state.user);
   const clearUser = useUserStore((state) => state.clearUser);
-  const { isLoading } = useUserSession();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
 
-  console.log("[v0] UserMenu render - user:", user, "isLoading:", isLoading);
-
   const handleUserClick = () => setIsMenuOpen(!isMenuOpen);
 
   const handleLogoutClick = async () => {
     try {
-      console.log("[v0] Logging out...");
       await fetch("http://localhost:5000/api/auth/logout", {
         method: "POST",
-        credentials: "include", // important for cookies
+        credentials: "include",
       });
-      console.log("[v0] Logout successful");
     } catch (error) {
       console.error("[v0] Logout error:", error);
     }
 
-    // Clear global state
     clearUser();
-    localStorage.removeItem("userFallback");
+    localStorage.removeItem("user");
+    localStorage.removeItem("game-attempts-storage");
     setIsMenuOpen(false);
-
-    // Redirect to home
     window.location.href = "/";
   };
 
-  const renderUserIcon = () => {
-    if (isLoading) return <User size={20} className="animate-pulse" />;
+  const userIcon = useMemo(() => {
+    if (!user) {
+      return <User size={20} />;
+    }
 
-    if (user?.image) {
+    if (user.image) {
       return (
         <img
-          src={user.image || "/placeholder.svg"}
+          src={user.image}
           alt={user.name || "Usuario"}
-          className="w-7 h-7 rounded-2 object-cover"
-          onError={(e) => {
-            // Fallback to user icon if image fails to load
-            e.target.style.display = "none";
-            e.target.nextSibling.style.display = "block";
-          }}
+          className="w-7 h-7 rounded-full object-cover"
         />
       );
     }
 
-    return <User size={20} />;
-  };
+    return <CircleUserRound size={22} />;
+  }, [user]);
 
   return (
     <div className="relative">
@@ -79,7 +76,7 @@ export default function UserMenu({ isDarkMode }) {
               aria-label="User menu"
             >
               <div className="relative flex items-center justify-center">
-                {renderUserIcon()}
+                {userIcon}
                 {user?.image && <User size={20} className="hidden" />}
               </div>
             </button>

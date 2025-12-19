@@ -4,9 +4,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useGameLogic } from "@/hooks/games/useGameLogic";
 import { GAME_CONFIGS } from "@/constants/gameConfig";
 import { useGameAttempts } from "@/hooks/game-state/useGameAttempts";
-import { useDailyGames } from "@/hooks/game-state/useDailyGames";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
-import { getGame } from "@/utils/gameCache"; // Declare the getGame variable
+import { useGameAttemptsStore } from "@/stores/gameAttemptsStore";
+import { useDailyGamesStore } from "@/stores/dailyGamesStore";
+import { debugLog } from "@/utils/debugLogger";
+import { useUserStore } from "@/stores/userStore";
+import { calculateStreak } from "@/utils/date";
 
 function normalizeString(str) {
   return str
@@ -17,6 +20,10 @@ function normalizeString(str) {
 }
 
 export function usePlayerGame({ gameMode, onGameEnd, clubId }) {
+  // debugLog.hookLifecycle("usePlayerGame", "mount", { gameMode, clubId });
+
+  const user = useUserStore((state) => state.user);
+
   const [playerGame, setPlayerGame] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -35,15 +42,10 @@ export function usePlayerGame({ gameMode, onGameEnd, clubId }) {
 
   const localAttempts = useLocalGameAttempts(clubId);
   const { getLastAttempt, refetch: refetchAttempts } = useGameAttempts(clubId);
-  const { getGame } = useDailyGames(clubId);
+  const gameAttemptsStore = useGameAttemptsStore();
 
   const gameConfig = GAME_CONFIGS.player;
   const timeLimit = gameConfig.modes[gameMode]?.timeLimit || 300;
-
-  // Mantener attemptsRef sincronizado con state
-  useEffect(() => {
-    attemptsRef.current = attempts;
-  }, [attempts]);
 
   const evaluateGuess = useCallback(
     (guess) => {
@@ -111,13 +113,28 @@ export function usePlayerGame({ gameMode, onGameEnd, clubId }) {
       isSavingRef.current = true;
 
       try {
+        debugLog.hookLifecycle("usePlayerGame", "save_start", {
+          won,
+          playerName: playerGame?.player?.fullName,
+          attemptsCount: attemptsRef.current.length,
+        });
+
         const lastAttemptData = localAttempts
           ? localAttempts.getLastAttempt("player")
           : getLastAttempt("player");
+
         const currentScore = won ? 1 : 0;
         const recordScore = lastAttemptData?.recordScore
           ? Math.max(currentScore, lastAttemptData.recordScore)
           : currentScore;
+
+        let streakValue = lastAttemptData?.streak || 0;
+        if (won) {
+          streakValue = calculateStreak(
+            lastAttemptData?.date,
+            lastAttemptData?.streak || 0
+          );
+        }
 
         const attemptData = {
           gameType: "player",
@@ -128,16 +145,24 @@ export function usePlayerGame({ gameMode, onGameEnd, clubId }) {
           timeUsed: gameStats?.finalTime || 0,
           livesRemaining: maxAttempts - attemptsRef.current.length,
           gameMode,
-          streak: won ? (lastAttemptData?.streak || 0) + 1 : 0,
+          streak: streakValue,
           gameData,
-          date: new Date(),
+          date: new Date().toISOString(),
         };
 
-        if (localAttempts) {
+        if (!user) {
+          // Guardado local solamente cuando NO hay usuario
           localAttempts.updateAttempt("player", attemptData);
           isSavingRef.current = false;
           return;
         }
+
+        debugLog.apiRequest(
+          "POST",
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/player/save`,
+          attemptData,
+          "usePlayerGame"
+        );
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/player/save`,
@@ -152,14 +177,33 @@ export function usePlayerGame({ gameMode, onGameEnd, clubId }) {
         if (!response.ok)
           throw new Error(`Error al guardar: ${response.status}`);
 
-        await refetchAttempts();
+        const { attempt: savedAttempt } = await response.json();
+        if (savedAttempt) {
+          gameAttemptsStore.updateAttempt(clubId, "player", {
+            ...attemptData,
+            streak: savedAttempt.streak, // Use backend-calculated streak
+            _id: savedAttempt._id,
+            createdAt: savedAttempt.createdAt,
+            updatedAt: savedAttempt.updatedAt,
+          });
+          if (!user) {
+            localAttempts.updateAttempt("player", {
+              ...attemptData,
+              streak: savedAttempt.streak,
+              _id: savedAttempt._id,
+              createdAt: savedAttempt.createdAt,
+              updatedAt: savedAttempt.updatedAt,
+            });
+          }
+        }
       } catch (error) {
+        debugLog.apiError("saveGameAttempt", error, "usePlayerGame");
         console.error("Error saving game attempt:", error);
       } finally {
         isSavingRef.current = false;
       }
     },
-    [getLastAttempt, gameMode, refetchAttempts, clubId]
+    [getLastAttempt, localAttempts, gameMode, clubId, gameAttemptsStore]
   );
 
   // Configurar la lógica del juego
@@ -169,72 +213,57 @@ export function usePlayerGame({ gameMode, onGameEnd, clubId }) {
     initialLives: maxAttempts,
     // onGameEnd puede ser llamado por useGameLogic; soportamos un tercer parámetro 'overrideGameData'
     onGameEnd: async (won, stats, overrideGameData) => {
-      // Preferir gameData pasado explícitamente por gameLogic.endGame(...) (overrideGameData)
-      // Si no viene, reconstruimos usando attemptsRef (que siempre tiene el último)
       const player = playerGame?.player;
-      const letrasFromOverride = overrideGameData?.Letras;
-      const evaluatedGuesses =
-        letrasFromOverride ?? attemptsRef.current.map((a) => a.evaluation);
 
-      // Construimos gameData exactamente como querés mantenerlo (guardamos Player completo)
-      const gameData = overrideGameData ?? {
+      const gameData = overrideGameData || {
         Player: player,
-        Letras: evaluatedGuesses,
+        Letras: attemptsRef.current.map((a) => a.evaluation),
       };
 
+      // SOLO guardar desde el HOOK
       await saveGameAttempt(won, stats, gameData);
-      // Llamamos al callback externo pasando el mismo gameData
-      await onGameEnd(won, stats, gameData);
+
+      // SOLO llamar al callback del componente
+      if (onGameEnd) {
+        await onGameEnd(won, stats, gameData);
+      }
     },
   });
 
   // Cargar el juego diario
+  // Cargar player game SOLO desde el store/localStorage → SIN FETCH
   useEffect(() => {
-    const fetchPlayerGame = async () => {
-      if (hasFetchedRef.current) return;
-      hasFetchedRef.current = true;
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
 
-      try {
-        setLoading(true);
-        const cachedGame = getGame("player");
+    setLoading(true);
 
-        if (cachedGame) {
-          setPlayerGame(cachedGame);
-          setLoading(false);
-          return;
-        }
+    try {
+      const { getGame: getStoredGame } = useDailyGamesStore.getState();
 
-        const localDate = new Date().toLocaleDateString("sv-SE");
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/player-game?date=${localDate}`,
-          {
-            cache: "no-store",
-            credentials: "include",
-          }
-        );
+      // playerGame diario
+      const stored = getStoredGame(clubId, "player");
 
-        const data = await res.json();
-
-        if (!data.playerGame) {
-          setErrorMessage("No hay juego disponible para hoy");
-          return;
-        }
-
-        setPlayerGame(data.playerGame);
-      } catch (error) {
-        console.error("Error cargando el player game:", error);
-        setErrorMessage("Error al cargar el juego del día");
-      } finally {
-        setLoading(false);
+      if (stored) {
+        // debugLog.cacheHit("playerGame", `usePlayerGame_${clubId || "global"}`);
+        setPlayerGame(stored);
+      } else {
+        // debugLog.cacheMiss("playerGame", `usePlayerGame_${clubId || "global"}`);
+        console.error("[playerGame] NO daily found in store!");
+        setErrorMessage("Error: el juego diario no está precargado");
       }
-    };
-
-    fetchPlayerGame();
-  }, [clubId, getGame]);
+    } finally {
+      setLoading(false);
+    }
+  }, [clubId]);
 
   // Inicialización
   const initializeGame = useCallback(() => {
     if (!playerGame) return;
+
+    // debugLog.hookLifecycle("usePlayerGame", "initialize_game", {
+    //   playerName: playerGame.player?.fullName,
+    // });
 
     setCurrentGuess("");
     setAttempts([]);
@@ -252,17 +281,19 @@ export function usePlayerGame({ gameMode, onGameEnd, clubId }) {
     if (!playerGame || currentGuess.length === 0) return;
     if (gameWon || gameLost) return;
 
-    // Asegurarnos de evaluar usando la longitud correcta (evaluateGuess ya recorta)
     const evaluation = evaluateGuess(currentGuess);
-
-    // Creamos nuevo intento con la evaluación ya recortada
     const newAttempt = {
       guess: currentGuess.slice(0, (playerGame?.selectedName || "").length),
       evaluation,
     };
     const newAttempts = [...attemptsRef.current, newAttempt];
 
-    // Actualizamos estado y ref
+    // debugLog.hookLifecycle("usePlayerGame", "submit_guess", {
+    //   guess: currentGuess,
+    //   attemptsCount: newAttempts.length,
+    //   isCorrect: evaluation.every((e) => e.status === "correct"),
+    // });
+
     setAttempts(newAttempts);
     attemptsRef.current = newAttempts;
 
@@ -285,21 +316,26 @@ export function usePlayerGame({ gameMode, onGameEnd, clubId }) {
 
     const isCorrect = evaluation.every((e) => e.status === "correct");
 
-    // Aquí usamos newAttempts directamente (via attemptsRef ya actualizado)
     if (isCorrect) {
+      // debugLog.hookLifecycle("usePlayerGame", "submit_correct", {
+      //   playerName: playerGame.player?.fullName,
+      //   attemptsUsed: newAttempts.length,
+      // });
       setGameWon(true);
       gameLogic.handleCorrectAnswer(1);
 
       setTimeout(() => {
-        // Pasamos el gameData en la llamada a endGame para que onGameEnd reciba overrideGameData
         const gameData = {
           Player: playerGame.player,
           Letras: newAttempts.map((a) => a.evaluation),
         };
-        // Si useGameLogic.forwarding acepta un tercer arg lo propagará; onGameEnd usa ese override
         gameLogic.endGame(true, null, gameData);
       }, 1000);
     } else if (newAttempts.length >= maxAttempts) {
+      // debugLog.hookLifecycle("usePlayerGame", "submit_lost", {
+      //   playerName: playerGame.player?.fullName,
+      //   maxAttempts,
+      // });
       setGameLost(true);
       gameLogic.handleIncorrectAnswer("Se acabaron los intentos");
 

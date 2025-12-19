@@ -76,15 +76,17 @@ export default function EditPlayerPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingPlayer, setIsLoadingPlayer] = useState(true);
 
+  const [globalStats, setGlobalStats] = useState({
+    totalGoals: 0,
+    totalAppearances: 0,
+    totalAssists: 0,
+    totalYellowCards: 0,
+    totalRedCards: 0,
+  });
+
   // Stats por club
   const [clubsStats, setClubsStats] = useState([]);
   const [selectedClubId, setSelectedClubId] = useState(null);
-
-  // Modals
-  const [showCreateClub, setShowCreateClub] = useState(false);
-  const [showCreateLeague, setShowCreateLeague] = useState(false);
-  const [newClub, setNewClub] = useState(NewClub);
-  const [newLeague, setNewLeague] = useState(NewLeague);
 
   // Handlers generales
   const handleChange = (e) => {
@@ -108,24 +110,21 @@ export default function EditPlayerPage() {
     }));
   };
 
-  const handleAddClubToStats = (club) => {
-    setClubsStats((prev) => [
-      ...prev,
-      {
-        club: club._id,
-        clubName: club.name,
-        goals: 0,
-        appearances: 0,
-        assists: 0,
-        yellowCards: 0,
-        redCards: 0,
-      },
-    ]);
+  const handleUpdateGlobalStat = (statName, value) => {
+    setGlobalStats((prev) => ({ ...prev, [statName]: value }));
   };
 
-  const handleRemoveClubFromStats = (clubId) => {
-    setClubsStats((prev) => prev.filter((c) => c.club !== clubId));
-    if (selectedClubId === clubId) setSelectedClubId(null);
+  const handleUpdateClubStat = (clubId, statName, value) => {
+    setClubsStats((prev) =>
+      prev.map((c) =>
+        c.club === clubId
+          ? {
+              ...c,
+              [statName]: statName === "actionImage" ? value : Number(value),
+            }
+          : c
+      )
+    );
   };
 
   const handleDateChange = (field, date) => {
@@ -149,6 +148,12 @@ export default function EditPlayerPage() {
     });
   };
 
+  // Variables for modals
+  const [newClub, setNewClub] = useState(NewClub);
+  const [newLeague, setNewLeague] = useState(NewLeague);
+  const [showCreateClub, setShowCreateClub] = useState(false);
+  const [showCreateLeague, setShowCreateLeague] = useState(false);
+
   // Cargar jugador
   useEffect(() => {
     const fetchPlayer = async () => {
@@ -157,10 +162,20 @@ export default function EditPlayerPage() {
         setIsLoadingPlayer(true);
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/players/${playerId}`,
-          { credentials: "include" }
+          {
+            credentials: "include",
+          }
         );
         if (!res.ok) throw new Error("Error cargando jugador");
         const data = await res.json();
+
+        setGlobalStats({
+          totalGoals: data.totalGoals || 0,
+          totalAppearances: data.totalAppearances || 0,
+          totalAssists: data.totalAssists || 0,
+          totalYellowCards: data.totalYellowCards || 0,
+          totalRedCards: data.totalRedCards || 0,
+        });
 
         // FormData
         setFormData({
@@ -210,7 +225,6 @@ export default function EditPlayerPage() {
           })) || []
         );
 
-        // Stats por club
         setClubsStats(
           data.clubsStats?.map((s) => ({
             club: normalizeObjectId(s.club),
@@ -220,6 +234,7 @@ export default function EditPlayerPage() {
             assists: s.assists || 0,
             yellowCards: s.yellowCards || 0,
             redCards: s.redCards || 0,
+            actionImage: s.actionImage || "", // Cargando actionImage
           })) || []
         );
       } catch (err) {
@@ -233,6 +248,43 @@ export default function EditPlayerPage() {
 
     fetchPlayer();
   }, [playerId, router]);
+
+  useEffect(() => {
+    if (career.length === 0) return;
+
+    setClubsStats((prevStats) => {
+      // Obtener todos los clubIds únicos del career
+      const careerClubIds = [
+        ...new Set(career.map((c) => c.club).filter(Boolean)),
+      ];
+
+      // Crear un mapa de stats existentes por clubId
+      const statsMap = new Map(prevStats.map((stat) => [stat.club, stat]));
+
+      // Crear nuevo array de stats sincronizado con career
+      const newStats = careerClubIds.map((clubId) => {
+        // Si ya existe el stat, mantenerlo
+        if (statsMap.has(clubId)) {
+          return statsMap.get(clubId);
+        }
+
+        // Si no existe, crear uno nuevo
+        const club = clubs.find((c) => c._id === clubId);
+        return {
+          club: clubId,
+          clubName: club?.name || "",
+          goals: 0,
+          appearances: 0,
+          assists: 0,
+          yellowCards: 0,
+          redCards: 0,
+          actionImage: "",
+        };
+      });
+
+      return newStats;
+    });
+  }, [career, clubs]);
 
   // Títulos
   const addTitle = () =>
@@ -263,12 +315,6 @@ export default function EditPlayerPage() {
 
   // Stats
   const handleSelectClub = (clubId) => setSelectedClubId(clubId);
-  const handleUpdateClubStat = (clubId, statName, value) =>
-    setClubsStats((prev) =>
-      prev.map((c) =>
-        c.club === clubId ? { ...c, [statName]: Number(value) } : c
-      )
-    );
 
   // Create
   const handleCreateLeague = async () => {
@@ -313,13 +359,29 @@ export default function EditPlayerPage() {
         .split(",")
         .map((n) => n.trim())
         .filter(Boolean);
-      const payload = { ...formData, nicknames, titles, career, clubsStats };
+      const formattedCareer = career.map((c) => ({
+        club: c.club || null,
+        name: clubs.find((club) => club._id === c.club)?.name || c.name || "",
+        from: c.joinedDate ? c.joinedDate.toISOString() : null,
+        to: c.leftDate ? c.leftDate.toISOString() : null,
+      }));
+
+      const payload = {
+        ...formData,
+        nicknames,
+        titles,
+        career: formattedCareer,
+        clubsStats,
+        ...globalStats, // Incluir stats globales
+      };
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/players/${playerId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
+          credentials: "include", // 👈 CLAVE
         }
       );
       if (res.ok) {
@@ -394,7 +456,7 @@ export default function EditPlayerPage() {
       <FormCard>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList
-            className="grid grid-cols-4 mb-6"
+            className="grid grid-cols-3 mb-6"
             style={{
               backgroundColor: isDarkMode
                 ? "var(--fondo-oscuro)"
@@ -421,25 +483,6 @@ export default function EditPlayerPage() {
               <User size={16} className="mr-2" /> Datos Básicos
             </TabsTrigger>
             <TabsTrigger
-              value="stats"
-              style={{
-                backgroundColor:
-                  activeTab === "stats"
-                    ? isDarkMode
-                      ? "var(--azul)"
-                      : "var(--rojo)"
-                    : "transparent",
-                color:
-                  activeTab === "stats"
-                    ? "var(--blanco)"
-                    : isDarkMode
-                    ? "var(--blanco)"
-                    : "var(--negro)",
-              }}
-            >
-              <BarChart3 size={16} className="mr-2" /> Stats y Títulos
-            </TabsTrigger>
-            <TabsTrigger
               value="career"
               style={{
                 backgroundColor:
@@ -458,6 +501,25 @@ export default function EditPlayerPage() {
             >
               <Briefcase size={16} className="mr-2" /> Trayectoria
             </TabsTrigger>
+            <TabsTrigger
+              value="stats"
+              style={{
+                backgroundColor:
+                  activeTab === "stats"
+                    ? isDarkMode
+                      ? "var(--azul)"
+                      : "var(--rojo)"
+                    : "transparent",
+                color:
+                  activeTab === "stats"
+                    ? "var(--blanco)"
+                    : isDarkMode
+                    ? "var(--blanco)"
+                    : "var(--negro)",
+              }}
+            >
+              <BarChart3 size={16} className="mr-2" /> Stats y Títulos
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic">
@@ -475,18 +537,15 @@ export default function EditPlayerPage() {
           <TabsContent value="stats">
             <StatsAndTitlesTab
               clubsStats={clubsStats}
-              selectedClubId={selectedClubId}
-              onSelectClub={handleSelectClub}
               onUpdateClubStat={handleUpdateClubStat}
+              globalStats={globalStats}
+              onUpdateGlobalStat={handleUpdateGlobalStat}
               titles={titles}
               isDarkMode={isDarkMode}
               onAddTitle={addTitle}
               onUpdateTitle={updateTitle}
               onRemoveTitle={removeTitle}
               clubs={clubs}
-              leagues={leagues} // <-- agregar esta línea
-              onAddClubToStats={handleAddClubToStats}
-              onRemoveClubFromStats={handleRemoveClubFromStats}
             />
           </TabsContent>
 

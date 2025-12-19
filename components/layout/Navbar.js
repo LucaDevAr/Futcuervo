@@ -1,17 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useRouter } from "next/navigation";
 import DarkModeButton from "@/components/layout/DarkModeButton";
 import UserButton from "@/components/auth/UserMenu";
 import MobileMenu from "@/components/layout/MobileMenu";
 import CafecitoButton from "@/components/layout/CafecitoButton";
 
-export default function Navbar({
-  title = "Fut ?",
-  logo = "/images/logo.png",
-  homeUrl = "/", // ✅ nuevo prop dinámico
-}) {
+function Navbar({ title = "Fut ?", logo = "/images/logo.png", homeUrl = "/" }) {
   const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
 
@@ -37,7 +33,7 @@ export default function Navbar({
           } flex items-center justify-center`}
         >
           <img
-            src={logo}
+            src={logo || "/placeholder.svg"}
             alt={`Logo ${title}`}
             className="w-full h-full object-contain"
           />
@@ -64,3 +60,5 @@ export default function Navbar({
     </nav>
   );
 }
+
+export default memo(Navbar);

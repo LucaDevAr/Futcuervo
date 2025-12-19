@@ -1,48 +1,112 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+"use client";
+
+import { useEffect, useRef } from "react";
 import { dailyGamesApi } from "@/services/dailyGamesApi";
 import { useDailyGamesStore } from "@/stores/dailyGamesStore";
 
+const DEBUG =
+  typeof window !== "undefined" && process.env.NEXT_PUBLIC_DEBUG === "true";
+
 export const useInitialDailyGames = () => {
-  console.log("[v0] useInitialDailyGames mounted ✅");
+  const { setAllGames, allGamesFetched, needsDailyReset, resetForNewDay } =
+    useDailyGamesStore();
 
-  const { setAllGames, allGamesFetched, forceRefresh } = useDailyGamesStore();
+  const mountedRef = useRef(false);
 
-  // 🧠 Verificamos si cambió el día para limpiar cache
   useEffect(() => {
-    const today = new Date().toDateString();
-    const storedDate = localStorage.getItem("dailyGamesDate");
-
-    if (storedDate !== today) {
-      console.log("[v0] New day detected 🗓️ Clearing cached games...");
-      forceRefresh(); // limpiamos todos los juegos
-      localStorage.setItem("dailyGamesDate", today);
+    if (!mountedRef.current) {
+      if (DEBUG) console.log("[v3] useInitialDailyGames mounted (REAL)");
+      mountedRef.current = true;
     }
-  }, [forceRefresh]);
+  }, []);
 
-  // 🔹 Query para traer TODOS los daily games
-  const query = useQuery({
-    queryKey: ["allDailyGames", new Date().toDateString()],
-    queryFn: async () => {
-      console.log("[v0] Fetching ALL daily games from API...");
-      const data = await dailyGamesApi.getAllDailyGames();
-      console.log("[v0] ✅ Games fetched from API:", data);
-      return data;
-    },
-    enabled: !allGamesFetched,
-    retry: 1,
-    staleTime: 1000 * 60 * 60 * 24, // 1 día
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-  });
-
-  // 🧩 Guardamos en el store cuando se cargan
+  // 🟢 1. Reset automático por cambio de día
   useEffect(() => {
-    if (query.data && !allGamesFetched) {
-      console.log("[v0] Setting allGames in store...");
-      setAllGames(query.data);
+    if (needsDailyReset()) {
+      if (DEBUG) console.log("[v3] Nuevo día → reseteando");
+      resetForNewDay();
     }
-  }, [query.data, allGamesFetched, setAllGames]);
+  }, [needsDailyReset, resetForNewDay]);
 
-  return query;
+  // 🔥 2. Fetch si hace falta
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (initializedRef.current) {
+      return;
+    }
+
+    const fetchAll = async () => {
+      if (allGamesFetched) {
+        if (DEBUG)
+          console.log("%c[v3] Daily games ya cargados", "color:#22c55e");
+        initializedRef.current = true;
+        return;
+      }
+
+      try {
+        const cachedGames = localStorage.getItem("daily-games-storage");
+        if (cachedGames) {
+          const parsed = JSON.parse(cachedGames);
+          if (parsed.state?.allGamesFetched && parsed.state?.clubs) {
+            const todayStr = new Date().toLocaleDateString("sv-SE");
+            const clubs = parsed.state.clubs;
+
+            // Verificar que todos los juegos sean de hoy
+            let allFromToday = true;
+            for (const clubId in clubs) {
+              const lastGames = clubs[clubId]?.lastGames || {};
+              for (const gameType in lastGames) {
+                const game = lastGames[gameType];
+                if (game?.date) {
+                  const gameDate = new Date(game.date).toLocaleDateString(
+                    "sv-SE"
+                  );
+                  if (gameDate !== todayStr) {
+                    allFromToday = false;
+                    if (DEBUG)
+                      console.log(
+                        `[v3] ⚠️ Cache inválido: juego ${gameType} de fecha ${gameDate}`
+                      );
+                    break;
+                  }
+                }
+              }
+              if (!allFromToday) break;
+            }
+
+            if (allFromToday) {
+              if (DEBUG)
+                console.log("%c[v3] ✅ Cache válido y actual", "color:#10b981");
+              setAllGames(clubs);
+              initializedRef.current = true;
+              return;
+            } else {
+              if (DEBUG)
+                console.log("[v3] ⚠️ Cache contiene juegos viejos → refetch");
+            }
+          }
+        }
+      } catch (err) {
+        if (DEBUG) console.warn("[v3] localStorage error:", err.message);
+      }
+
+      try {
+        if (DEBUG) console.log("[v3] 🔥 Fetching daily games...");
+        const data = await dailyGamesApi.getAllDailyGames();
+
+        if (data) {
+          setAllGames(data);
+        }
+        initializedRef.current = true;
+      } catch (err) {
+        console.error("[v3] Error fetching games:", err);
+        initializedRef.current = true;
+      }
+    };
+
+    fetchAll();
+  }, [allGamesFetched, setAllGames]);
+
+  return {};
 };

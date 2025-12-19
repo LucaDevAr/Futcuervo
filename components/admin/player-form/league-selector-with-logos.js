@@ -13,8 +13,7 @@ export function LeagueSelectorWithLogos({
   label = "Liga",
   placeholder = "Seleccionar liga",
 }) {
-  // Ordenar ligas: Argentina primero, resto alfabético
-  const sortedLeagues = sortLeagues(leagues);
+  const sortedLeagues = sortLeagues(leagues || []);
 
   const options = sortedLeagues.map((league) => ({
     value: league._id,

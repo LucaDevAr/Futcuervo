@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Heart, Clock } from "lucide-react";
 import { Shield } from "lucide-react";
-import { ArrowDown, ArrowRight } from "lucide-react";
 import StartScreen from "@/components/screens/StartScreen";
 import EndScreen from "@/components/screens/EndScreen";
 import LoadingScreen from "@/components/ui/loading-screen";
@@ -11,8 +10,8 @@ import { useGameAttempts } from "@/hooks/game-state/useGameAttempts";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
 import { useUserStore } from "@/stores/userStore";
 import { useCareerGame } from "@/hooks/games/useCareerGame";
-
-export const dynamic = "force-dynamic";
+import PlayerAutocomplete from "../player-autocomplete";
+import { useGameDataPreload } from "@/hooks/games";
 
 export default function CareerGame({ clubId, homeUrl }) {
   const [gameMode, setGameMode] = useState("lives");
@@ -24,26 +23,52 @@ export default function CareerGame({ clubId, homeUrl }) {
 
   const user = useUserStore((state) => state.user);
 
-  // Hooks
-  const userAttempts = useGameAttempts(clubId); // DB
-  const localAttempts = useLocalGameAttempts(clubId); // localStorage
+  // ----------------------------------------
+  // ⚠️ SIEMPRE SE LLAMA (regla de hooks)
+  // ----------------------------------------
+  const serverAttempts = useGameAttempts(clubId);
 
-  // Si hay usuario → usamos DB, sino Local
-  const attempts = user ? userAttempts : localAttempts;
+  // ----------------------------------------
+  // 🔥 LOCAL (siempre disponible)
+  // ----------------------------------------
+  const localAttempts = useLocalGameAttempts(clubId);
+
+  // ----------------------------------------
+  // 🔥 Elección lógica sin romper hooks
+  // ----------------------------------------
+  const attempts = user ? serverAttempts : localAttempts;
 
   const wasPlayedToday = attempts?.wasPlayedToday?.("career") || false;
+
+  const attemptsLoading = user ? serverAttempts?.isLoading : false;
+  const attemptsAreLoaded = attemptsLoading === false;
+
+  const shouldSkipPreload = attemptsAreLoaded && wasPlayedToday;
+
+  const {
+    players: allPlayers,
+    isLoading: dataLoading,
+    error: dataError,
+  } = useGameDataPreload({
+    needPlayers: true,
+    needClubs: false,
+    needLeagues: false,
+    needCoaches: false,
+    clubId, // optional
+    skip: shouldSkipPreload,
+  });
+
   const getLastAttempt = () => attempts?.getLastAttempt?.("career") || null;
-  const attemptsLoading = user ? userAttempts.isLoading : false;
+
+  const lastAttempt = getLastAttempt();
 
   const careerGameHook = useCareerGame({
     gameMode,
     clubId,
     onGameEnd: async (won, stats, gameData) => {
-      console.log("[PlayerGame] Game ended:", { won, stats, gameData });
+      // console.log("[CareertGame] Game ended:", { won, stats, gameData });
     },
   });
-
-  const lastAttempt = getLastAttempt();
 
   const calculateAge = (birthdate) => {
     if (!birthdate) return null;
@@ -95,7 +120,10 @@ export default function CareerGame({ clubId, homeUrl }) {
         !isLast; // último global tampoco muestra
 
       return (
-        <div key={index} className="relative flex flex-col items-center group">
+        <div
+          key={index}
+          className="relative flex flex-col items-center group justify-center"
+        >
           {/* 🔢 Número dentro del card */}
           <div className="absolute top-1 left-1 bg-[var(--primary)] dark:bg-white text-white dark:text-[var(--background)] text-xs font-bold px-1.5 py-0.5 rounded z-10">
             #{index + 1}
@@ -128,7 +156,7 @@ export default function CareerGame({ clubId, homeUrl }) {
             </div>
 
             {/* 🏷️ Info */}
-            <div className="flex flex-col justify-center text-[var(--black)] dark:text-[var(--white)] text-sm">
+            <div className="flex flex-col justify-center text-[var(--white)] dark:text-[var(--white)] text-sm">
               <p
                 className={`font-semibold leading-tight ${
                   isCurrentClub
@@ -166,7 +194,7 @@ export default function CareerGame({ clubId, homeUrl }) {
           {showArrow && (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4 mb-2 text-[var(--primary)] dark:text-white"
+              className="h-4 w-4 mb-4 text-[var(--primary)] dark:text-white"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -184,9 +212,9 @@ export default function CareerGame({ clubId, homeUrl }) {
     };
 
     return (
-      <div className="flex flex-col items-center justify-center py-4 px-2 overflow-y-auto max-h-[100vh]">
+      <div className="flex flex-col items-center justify-center px-2 overflow-y-auto h-full">
         {timelineSteps.length > 5 ? (
-          <div className="grid grid-cols-2 gap-8 max-w-5xl w-full">
+          <div className="grid grid-cols-2 gap-8 max-w-5xl w-full h-full py-8 items-center">
             <div className="flex flex-col">
               {leftColumn.map((step, i) =>
                 renderStep(step, i, i === 0, false, true, leftColumn.length)
@@ -232,17 +260,6 @@ export default function CareerGame({ clubId, homeUrl }) {
     );
   }
 
-  if (attemptsLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary mx-auto mb-4"></div>
-          <p>Cargando datos del juego...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (careerGameHook.loading) {
     return <LoadingScreen message="Cargando juego..." />;
   }
@@ -260,7 +277,24 @@ export default function CareerGame({ clubId, homeUrl }) {
   if (wasPlayedToday && lastAttempt) {
     const gameData = lastAttempt.gameData || {};
     const gameWon = lastAttempt.won || false;
-    const player = careerGameHook.careerGame?.player;
+
+    const player = gameData.Player;
+    const clubStats = player?.clubsStats?.find(
+      (s) => String(s.club?._id) === String(clubId)
+    );
+
+    const enrichedGameData = {
+      Pistas: gameData.revealedIndices,
+      Jugador: player?.fullName,
+      Nacionalidad: player?.nationality?.name,
+      Posiciones: player?.positions?.slice(0, 2).join(", "),
+      Partidos: clubStats?.appearances ?? 0,
+      Goles: clubStats?.goals ?? 0,
+      Asistencias: clubStats?.assists ?? 0,
+      ...gameData,
+    };
+
+    const { Player, Club, ...gameDataFiltered } = enrichedGameData;
 
     return (
       <EndScreen
@@ -274,12 +308,12 @@ export default function CareerGame({ clubId, homeUrl }) {
           score: lastAttempt.score,
         }}
         formatTime={careerGameHook.gameLogic.formatTime}
-        gameData={gameData}
+        gameData={gameDataFiltered}
         homeUrl={homeUrl}
         mediaContent={
           <div className="flex flex-col items-center gap-4 w-full h-full relative">
             {player?.profileImage && (
-              <div className="w-20 lg:w-28 h-20 rounded-full overflow-hidden border-4 border-primary dark:border-secondary absolute top-1/2 -translate-y-1/2 lg:static">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[var(--primary)] dark:border-[var(--secondary)] absolute top-1/2 -translate-y-1/2 z-[10000000] -mt-2">
                 <img
                   src={player?.profileImage || "/placeholder.svg"}
                   alt={player?.fullName}
@@ -298,11 +332,17 @@ export default function CareerGame({ clubId, homeUrl }) {
 
   if (careerGameHook.gameLogic.gameOver) {
     const player = careerGameHook.careerGame?.player;
+
+    const clubStats = player?.clubsStats?.find(
+      (c) => String(c.club) === String(clubId)
+    );
+
     const gameData = {
       Nombre: player?.fullName,
       Nacionalidad: player?.nationality.name,
-      Goles: player?.goals,
-      Partidos: player?.appearances,
+      Partidos: clubStats?.appearances ?? 0,
+      Goles: clubStats?.goals ?? 0,
+      Asistencias: clubStats?.assists ?? 0,
       "Pistas reveladas": careerGameHook.revealedIndices.length,
     };
 
@@ -361,7 +401,7 @@ export default function CareerGame({ clubId, homeUrl }) {
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col lg:flex-row w-full bg-[var(--background)]">
-      <div className="h-[65%] lg:w-1/2 flex flex-col lg:py-8 lg:h-full">
+      <div className="h-[65%] lg:w-1/2 flex flex-col lg:h-full">
         <TimelineComponent />
       </div>
 
@@ -381,7 +421,7 @@ export default function CareerGame({ clubId, homeUrl }) {
                   size={24}
                   className={
                     index < (careerGameHook.gameLogic.lives ?? 0)
-                      ? "text-secondary fill-secondary dark:text-primary dark:fill-primary"
+                      ? "text-[var(--secondary)] fill-[var(--secondary)] dark:text-[var(--primary)] dark:fill-[var(--primary)]"
                       : "text-white opacity-30"
                   }
                 />
@@ -407,16 +447,32 @@ export default function CareerGame({ clubId, homeUrl }) {
           </div>
 
           <div className="space-y-4">
-            <input
-              type="text"
+            <PlayerAutocomplete
               value={careerGameHook.guess}
-              onChange={(e) => careerGameHook.setGuess(e.target.value)}
+              onChange={(val) => careerGameHook.setGuess(val)}
+              onPlayerSelect={(player) => {
+                // Cuando selecciona un jugador del autocomplete
+                if (player && player._id) {
+                  // Marca como selección válida
+                  careerGameHook.setGuess(
+                    player.fullName || player.displayName
+                  );
+                }
+              }}
               placeholder="Escribe el nombre del jugador..."
-              className="w-full px-4 py-3 rounded-xl border-2 text-base transition-all duration-200 focus:outline-none bg-white text-primary dark:text-secondary border-white focus:border-white focus:shadow-lg placeholder:text-background"
-              onKeyPress={(e) =>
-                e.key === "Enter" && careerGameHook.handleSubmit()
-              }
               disabled={careerGameHook.gameLogic.gameOver}
+              autoFocus={true}
+              cachedPlayers={allPlayers || []}
+              onValidSelectionChange={(isValid) => {
+                // Si querés validar algo externamente, queda listo
+              }}
+              onSubmitTrigger={() => {
+                // Enter presionado con selección válida
+                if (!careerGameHook.gameLogic.gameOver) {
+                  careerGameHook.handleSubmit();
+                }
+              }}
+              className="text-base"
             />
 
             <button

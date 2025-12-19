@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+const DEBUG =
+  typeof window !== "undefined" && process.env.NEXT_PUBLIC_DEBUG === "true";
+
 export const useDailyGamesStore = create(
   persist(
     (set, get) => ({
@@ -9,18 +12,103 @@ export const useDailyGamesStore = create(
       isLoading: false,
       error: null,
 
+      // -------------------------------
+      // 🧠 Validar fechas de juegos
+      // -------------------------------
+      isGameFromToday: (dateStr) => {
+        if (!dateStr) return false;
+        const today = new Date().toLocaleDateString("sv-SE");
+        const d = new Date(dateStr).toLocaleDateString("sv-SE");
+        return d === today;
+      },
+
+      // -----------------------------------------
+      // 🧠 Detecta si hay que resetear por nuevo día
+      // -----------------------------------------
+      needsDailyReset: () => {
+        const { clubs } = get();
+        const isGameFromToday = get().isGameFromToday;
+
+        if (!clubs || Object.keys(clubs).length === 0) {
+          if (DEBUG) console.log("[DailyGames] No hay clubs → reset necesario");
+          return true;
+        }
+
+        for (const clubId in clubs) {
+          const lastGames = clubs[clubId]?.lastGames;
+          if (!lastGames) return true;
+
+          for (const gameType in lastGames) {
+            const game = lastGames[gameType];
+            if (!game?.date) return true;
+
+            if (!isGameFromToday(game.date)) {
+              if (DEBUG)
+                console.log(
+                  `[DailyGames] Juego viejo encontrado ${gameType} (${game.date})`
+                );
+              return true;
+            }
+          }
+        }
+
+        return false;
+      },
+
+      // -----------------------------------------
+      // Reset
+      // -----------------------------------------
+      resetForNewDay: () => {
+        if (DEBUG) console.log("[DailyGames] ResetForNewDay ejecutado");
+        set({
+          clubs: {},
+          allGamesFetched: false,
+          error: null,
+        });
+      },
+
+      // -------------------------------
+      // Métodos existentes
+      // -------------------------------
       setAllGames: (gamesByClub) => {
-        console.log("[v0] setAllGames called with:", gamesByClub);
-        set(() => ({
-          clubs: gamesByClub || {},
+        if (DEBUG) console.log("[v0] setAllGames called");
+
+        const isToday = get().isGameFromToday;
+        const cleaned = {};
+
+        for (const clubId in gamesByClub) {
+          const entry = gamesByClub[clubId];
+          const lastGames = entry.lastGames || {};
+
+          const filtered = {};
+
+          for (const type in lastGames) {
+            const game = lastGames[type];
+            if (game?.date && isToday(game.date)) {
+              filtered[type] = game;
+            } else {
+              if (DEBUG) console.warn(`[DailyGames] ❌ Juego viejo: ${type}`);
+            }
+          }
+
+          cleaned[clubId] = {
+            lastGames: filtered,
+            totalGames: Object.keys(filtered).length,
+            lastUpdated: new Date().toISOString(),
+          };
+        }
+
+        set({
+          clubs: cleaned,
           allGamesFetched: true,
           error: null,
-        }));
+        });
       },
 
       setClubGames: (clubId, gamesData) => {
         const key = clubId || "null";
-        console.log("[v0] setClubGames called for club:", key, gamesData);
+        if (DEBUG)
+          console.log("[v0] setClubGames called for club:", key, gamesData);
 
         set((state) => ({
           clubs: {
@@ -38,22 +126,14 @@ export const useDailyGamesStore = create(
 
       getClubGames: (clubId) => {
         const { clubs } = get();
-        const key = clubId || "null";
-        return clubs[key]?.lastGames || null;
+        return clubs[clubId || "null"]?.lastGames || null;
       },
 
       getGame: (clubId, gameType) => {
         const { clubs } = get();
         const key = clubId || "null";
         const game = clubs[key]?.lastGames?.[gameType] || null;
-        console.log(
-          "[v0] getGame called for club:",
-          key,
-          "gameType:",
-          gameType,
-          "result:",
-          game
-        );
+        if (DEBUG) console.log("[v0] getGame:", key, gameType, game);
         return game;
       },
 
@@ -62,86 +142,12 @@ export const useDailyGamesStore = create(
         return clubs[clubId || "null"] || null;
       },
 
-      needsRefresh: (clubId) => {
-        const { clubs, allGamesFetched } = get();
-
-        // If we've fetched all games and this club exists, check if it's stale
-        if (allGamesFetched && clubs[clubId || "null"]) {
-          const clubData = clubs[clubId || "null"];
-          const lastUpdate = new Date(clubData.lastUpdated);
-          const now = new Date();
-
-          // Refresh if day changed
-          const lastUpdateDay = lastUpdate.toDateString();
-          const currentDay = now.toDateString();
-
-          if (lastUpdateDay !== currentDay) {
-            console.log("[v0] needsRefresh: true - day changed");
-            return true;
-          }
-
-          // Refresh if more than 24 hours passed
-          const hoursDiff = (now - lastUpdate) / (1000 * 60 * 60);
-          return hoursDiff > 24;
-        }
-
-        const clubData = clubs[clubId || "null"];
-
-        if (!clubData || !clubData.lastUpdated) {
-          console.log(
-            "[v0] needsRefresh: true - no data for club:",
-            clubId || "null"
-          );
-          return true;
-        }
-
-        const lastUpdate = new Date(clubData.lastUpdated);
-        const now = new Date();
-
-        // Refresh if day changed
-        const lastUpdateDay = lastUpdate.toDateString();
-        const currentDay = now.toDateString();
-
-        if (lastUpdateDay !== currentDay) {
-          console.log(
-            "[v0] needsRefresh: true - day changed from",
-            lastUpdateDay,
-            "to",
-            currentDay,
-            "for club:",
-            clubId || "null"
-          );
-          return true;
-        }
-
-        // Refresh if more than 24 hours passed
-        const hoursDiff = (now - lastUpdate) / (1000 * 60 * 60);
-        const shouldRefresh = hoursDiff > 24;
-
-        console.log(
-          "[v0] needsRefresh:",
-          shouldRefresh,
-          "- hours diff:",
-          hoursDiff,
-          "for club:",
-          clubId || "null"
-        );
-        return shouldRefresh;
-      },
-
-      forceRefresh: (clubId = null) => {
-        if (clubId === null) {
-          // Clear all clubs
-          set({ clubs: {}, allGamesFetched: false });
-        } else {
-          // Clear specific club
-          set((state) => {
-            const newClubs = { ...state.clubs };
-            delete newClubs[clubId || "null"];
-            return { clubs: newClubs };
-          });
-        }
-      },
+      forceRefresh: () =>
+        set({
+          clubs: {},
+          allGamesFetched: false,
+          error: null,
+        }),
 
       clearGames: () =>
         set({
@@ -152,7 +158,6 @@ export const useDailyGamesStore = create(
         }),
 
       setLoading: (isLoading) => set({ isLoading }),
-
       setError: (error) => set({ error, isLoading: false }),
     }),
     {

@@ -129,9 +129,7 @@ export default function SongGamePage() {
     const fetchSongGameData = async () => {
       try {
         const localDate = new Date().toLocaleDateString("sv-SE"); // ✅ Usa fecha local YYYY-MM-DD
-        const res = await fetch(`/api/song-game?date=${localDate}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(`/api/song-game?date=${localDate}`);
 
         const data = await res.json();
 

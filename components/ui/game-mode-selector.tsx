@@ -59,9 +59,7 @@ export default function GameModeSelector({
 
   return (
     <div className={`w-full space-y-3 ${className}`}>
-      <h3 className="text-lg font-semibold text-center text-[var(--azul)] dark:text-[var(--blanco)]">
-        Modo de Juego
-      </h3>
+      <h3 className="text-lg font-semibold text-center">Modo de Juego</h3>
       <div className={`grid ${gridCols} gap-2 w-full`}>
         {availableModes.map((mode) => {
           const config = getModeConfig(mode);
@@ -75,8 +73,8 @@ export default function GameModeSelector({
                 flex flex-col items-center gap-2 p-1 lg:p-3 rounded-xl border-2 transition-all duration-200 text-center w-full
                 ${
                   isSelected
-                    ? "border-[var(--rojo)] dark:border-[var(--azul)] bg-[var(--rojo)] dark:bg-[var(--azul)] text-white shadow-lg transform scale-105"
-                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-[var(--azul)] dark:text-[var(--blanco)] hover:border-[var(--rojo)] dark:hover:border-[var(--azul)] hover:shadow-md"
+                    ? "border-[var(--secondary)] dark:border-[var(--primary)] bg-[var(--secondary)] dark:bg-[var(--primary)] text-white shadow-lg transform scale-105"
+                    : "border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-[var(--primary)] dark:text-[var(--blanco)] hover:border-[var(--secondary)] dark:hover:border-[var(--primary)] hover:shadow-md"
                 }
               `}
             >

@@ -31,7 +31,7 @@ export default function GameScreen({
 
   return (
     <>
-      <div className="h-screen flex flex-col md:flex-row py-[56px] md:py-[64px]">
+      <div className="h-[calc(100vh-56px)] md:h-[calc(100vh-64px)] flex flex-col md:flex-row">
         {/* Left Column - Media */}
         <div className="w-full md:w-1/2 flex items-center justify-center bg-[var(--gris-claro)] dark:bg-[var(--fondo-oscuro)] relative h-[40%] md:h-auto">
           <div className="relative h-full flex items-center justify-center p-4 md:p-6 w-full">
@@ -40,16 +40,16 @@ export default function GameScreen({
         </div>
 
         {/* Right Column - Game Content */}
-        <div className="w-full md:w-1/2 flex flex-col items-center p-2 lg:p-4 bg-[var(--azul)] dark:bg-[var(--rojo)] min-h-[60%] md:min-h-full relative">
+        <div className="w-full md:w-1/2 flex flex-col items-center p-2 lg:p-4 bg-[var(--primary)] dark:bg-[var(--secondary)] min-h-[60%] md:min-h-full relative">
           {/* Centered content container */}
           <div className="flex-1 flex flex-col justify-start lg:justify-center items-center w-full">
             {/* Header section */}
             <div className="flex flex-col items-center w-full mb-1 md:mb-8 px-4">
-              <h3 className="text-2xl md:text-3xl font-bold text-[var(--blanco)] text-center hidden lg:block">
+              <h3 className="text-2xl md:text-3xl font-bold text-[var(--white)] text-center hidden lg:block">
                 {config.title}
               </h3>
               {topic && (
-                <p className="text-sm md:text-base text-[var(--blanco)] opacity-90 mb-2 text-center md:mb-3 hidden lg:block">
+                <p className="text-sm md:text-base text-[var(--white)] opacity-90 mb-2 text-center md:mb-3 hidden lg:block">
                   {topic}
                 </p>
               )}
@@ -71,7 +71,7 @@ export default function GameScreen({
                     ))}
                   </div>
                 ) : gameMode === "time" ? (
-                  <div className="flex items-center gap-2 text-[var(--blanco)]">
+                  <div className="flex items-center gap-2 text-[var(--white)]">
                     <Clock size={20} />
                     <span className="text-lg md:text-xl font-bold">
                       {gameLogic
@@ -87,7 +87,7 @@ export default function GameScreen({
 
             {/* Main content section */}
             <div className="w-full max-w-sm md:max-w-md px-4">
-              <h2 className="text-base md:text-lg font-bold mb-2 md:mb-4 text-center text-[var(--blanco)] leading-tight">
+              <h2 className="text-base md:text-lg font-bold mb-2 md:mb-4 text-center text-[var(--white)] leading-tight">
                 {question}
               </h2>
 
@@ -119,7 +119,7 @@ export default function GameScreen({
                 <button
                   onClick={onSubmit}
                   disabled={!canSubmit}
-                  className="w-full py-2 lg:py-3 rounded-lg font-bold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg bg-[var(--blanco)] text-[var(--azul)] dark:text-[var(--rojo)] hover:opacity-90 border-2 border-[var(--blanco)]"
+                  className="w-full py-2 lg:py-3 rounded-lg font-bold text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg bg-[var(--white)] text-[var(--primary)] dark:text-[var(--secondary)] hover:opacity-90 border-2 border-[var(--white)]"
                 >
                   Confirmar Respuesta
                 </button>
@@ -131,14 +131,14 @@ export default function GameScreen({
           {((currentStep && totalSteps) || progressInfo) && (
             <div className="w-full max-w-sm md:max-w-md absolute bottom-2 lg:bottom-4 left-1/2 transform -translate-x-1/2 px-4">
               {currentStep && totalSteps && (
-                <div className="h-1.5 rounded-full lg:placeholder:mb-2 bg-[var(--rojo)] dark:bg-[var(--azul)] bg-opacity-30">
+                <div className="h-1.5 rounded-full lg:placeholder:mb-2 bg-[var(--secondary)] dark:bg-[var(--primary)] bg-opacity-30">
                   <div
-                    className="h-full rounded-full transition-all duration-300 bg-[var(--blanco)]"
+                    className="h-full rounded-full transition-all duration-300 bg-[var(--white)]"
                     style={{ width: `${getProgressPercentage()}%` }}
                   />
                 </div>
               )}
-              <p className="text-xs font-medium text-center text-[var(--blanco)] opacity-80">
+              <p className="text-xs font-medium text-center text-[var(--white)] opacity-80">
                 {progressInfo || `Paso ${currentStep} de ${totalSteps}`}
               </p>
             </div>

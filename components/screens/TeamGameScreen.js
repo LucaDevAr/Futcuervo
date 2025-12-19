@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { AlertCircle, User, Heart, Clock } from "lucide-react";
 import { useMediaQuery } from "react-responsive";
 import PlayerAutocomplete from "@/components/player-autocomplete";
+import CoachAutocomplete from "@/components/coach-autocomplete";
 
 // Formaciones desktop
 export const FORMATIONS_DESKTOP = {
@@ -150,6 +151,7 @@ export default function TeamGameScreen(props) {
     gameLogic,
     positionErrorMessage,
     cachedPlayers = [], // Add cachedPlayers prop
+    cachedCoaches = [], // Add cachedCoaches prop
     validPlayersForCurrentClub = [], // Add validPlayersForCurrentClub prop
   } = props;
 
@@ -157,6 +159,7 @@ export default function TeamGameScreen(props) {
   const coachInputRef = useRef(null);
   const isMobile = useMediaQuery({ maxWidth: 767 });
   const [isPlayerValid, setIsPlayerValid] = useState(false);
+  const [isCoachValid, setIsCoachValid] = useState(false);
 
   const selectedFormationLayout = isMobile
     ? FORMATIONS_MOBILE[formation]
@@ -194,12 +197,27 @@ export default function TeamGameScreen(props) {
     }
   };
 
+  const handleSubmitTriggerCoach = () => {
+    if (isCoachValid && !isSubmitting) {
+      const syntheticEvent = { preventDefault: () => {} };
+      onCoachSubmit(syntheticEvent);
+    }
+  };
+
+  const handleCoachSelect = (coach) => {
+    // setCoach(coach);
+  };
+
+  const handlePlayerSelect = (player) => {
+    // setPlayer(player);
+  };
+
   if ((!currentTarget && !gameOver) || errorMessage) {
     return (
       <>
         <div className="h-screen flex items-center justify-center dark:text-[var(--blanco)] py-[56px] md:py-[64px]">
           <div className="text-center">
-            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-[var(--rojo)]" />
+            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-[var(--secondary)]" />
             <p className="mb-4">{errorMessage || "Error al cargar el juego"}</p>
             <button
               onClick={() => window.location.reload()}
@@ -297,7 +315,7 @@ export default function TeamGameScreen(props) {
                                 }}
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)] rounded-full">
+                              <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)] rounded-full">
                                 <User className="h-4 w-4 md:h-5 md:w-5 text-gray-500 dark:text-gray-400" />
                               </div>
                             )
@@ -361,7 +379,7 @@ export default function TeamGameScreen(props) {
                   </div>
                 </div>
               </div>
-              <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--blanco)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
+              <span className="text-[9px] md:text-xs font-bold text-black dark:text-white text-center max-w-[60px] md:max-w-[100px] leading-tight">
                 {coach ? `DT: ${coach.fullName}` : "DT: ?"}
               </span>
             </div>
@@ -418,7 +436,7 @@ export default function TeamGameScreen(props) {
                     />
                   ) : (
                     <div className="w-8 h-8 md:w-14 md:h-14 bg-white rounded-full flex items-center justify-center">
-                      <span className="text-sm md:text-base text-[var(--azul)] dark:text-[var(--rojo)] font-bold">
+                      <span className="text-sm md:text-base text-[var(--primary)] dark:text-[var(--secondary)] font-bold">
                         {getTargetName().substring(0, 2)}
                       </span>
                     </div>
@@ -443,24 +461,24 @@ export default function TeamGameScreen(props) {
             {/* Conditional rendering for Player/Coach input vs. Position Selector */}
             {needsCoach ? (
               // Coach Input Form
-              <div className="p-2 md:p-3 rounded-xl bg-[var(--rojo)] dark:bg-[var(--azul)] shadow-lg">
+              <div className="p-2 md:p-3 rounded-xl bg-[var(--secondary)] dark:bg-[var(--primary)] shadow-lg">
                 <form onSubmit={onCoachSubmit}>
                   <div className="mb-1 md:mb-3">
-                    <input
-                      ref={coachInputRef}
-                      type="text"
+                    <CoachAutocomplete
                       value={coachInput}
-                      onChange={(e) => onCoachInputChange(e.target.value)}
-                      placeholder={`Director Técnico que haya dirigido en ${getTargetName()}...`}
-                      className="w-full p-1 md:p-2 border-2 border-white/20 rounded-lg bg-white text-black text-sm md:text-base focus:border-white focus:outline-none"
+                      onChange={onCoachInputChange}
+                      onCoachSelect={handleCoachSelect}
+                      placeholder={`Director Técnico para ${getTargetName()}...`}
                       disabled={isSubmitting}
-                      autoFocus
+                      onValidSelectionChange={(v) => setIsCoachValid(v)}
+                      onSubmitTrigger={handleSubmitTriggerCoach}
+                      cachedCoaches={cachedCoaches}
                     />
                   </div>
                   <button
                     type="submit"
-                    disabled={isSubmitting || !coachInput.trim()}
-                    className="w-full py-1.5 md:py-2 bg-white text-[var(--azul)] dark:text-[var(--rojo)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors hover:opacity-90 text-xs md:text-base"
+                    disabled={!isCoachValid || isSubmitting}
+                    className="w-full py-1.5 md:py-2 bg-white text-[var(--primary)] dark:text-[var(--secondary)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors hover:opacity-90 text-xs md:text-base"
                   >
                     {isSubmitting ? "Validando..." : "Agregar Director Técnico"}
                   </button>
@@ -469,7 +487,7 @@ export default function TeamGameScreen(props) {
             ) : currentPlayer && availablePositions.length > 0 ? (
               // Position Selector UI
               <div className="w-full max-w-md mb-2 md:mb-3">
-                <div className="p-2 md:p-3 rounded-xl bg-[var(--rojo)] dark:bg-[var(--azul)] shadow-lg">
+                <div className="p-2 md:p-3 rounded-xl bg-[var(--secondary)] dark:bg-[var(--primary)] shadow-lg">
                   <h4 className="text-white font-bold mb-1 md:mb-2 text-center text-xs md:text-sm">
                     {currentPlayer.fullName}:
                   </h4>
@@ -485,9 +503,9 @@ export default function TeamGameScreen(props) {
                           value={pos}
                           checked={selectedPosition === pos}
                           onChange={() => onPositionSelect(pos)}
-                          className="h-2.5 w-2.5 md:h-3 md:w-3 text-[var(--azul)] dark:text-[var(--rojo)]"
+                          className="h-2.5 w-2.5 md:h-3 md:w-3 text-[var(--primary)] dark:text-[var(--secondary)]"
                         />
-                        <span className="text-xs md:text-sm text-[var(--azul)] dark:text-[var(--rojo)] font-bold">
+                        <span className="text-xs md:text-sm text-[var(--primary)] dark:text-[var(--secondary)] font-bold">
                           {pos}
                         </span>
                       </label>
@@ -495,7 +513,7 @@ export default function TeamGameScreen(props) {
                   </div>
                   <button
                     onClick={onConfirmPosition}
-                    className="w-full py-1 bg-white text-[var(--azul)] dark:text-[var(--rojo)] rounded-lg hover:opacity-90 font-medium text-xs md:text-sm"
+                    className="w-full py-1 bg-white text-[var(--primary)] dark:text-[var(--secondary)] rounded-lg hover:opacity-90 font-medium text-xs md:text-sm"
                   >
                     Confirmar
                   </button>
@@ -503,24 +521,24 @@ export default function TeamGameScreen(props) {
               </div>
             ) : (
               // Player Input Form (shown when not needing coach AND no player is currently being positioned)
-              <div className="p-2 md:p-3 rounded-xl bg-[var(--rojo)] dark:bg-[var(--azul)] shadow-lg">
+              <div className="p-2 md:p-3 rounded-xl bg-[var(--secondary)] dark:bg-[var(--primary)] shadow-lg">
                 <form onSubmit={onPlayerSubmit}>
                   <div className="mb-1 md:mb-3">
                     <PlayerAutocomplete
                       value={playerInput}
                       onChange={onPlayerInputChange}
-                      onPlayerSelect={(p) => console.log("Seleccionado:", p)}
+                      onPlayerSelect={handlePlayerSelect}
                       placeholder={`Jugador que haya jugado en ${getTargetName()}...`}
                       disabled={isSubmitting}
                       onValidSelectionChange={(v) => setIsPlayerValid(v)}
                       onSubmitTrigger={handleSubmitTrigger}
-                      cachedPlayers={cachedPlayers} // Pass all cached players for suggestions, not just valid ones
+                      cachedPlayers={cachedPlayers}
                     />
 
                     <button
                       type="submit"
                       disabled={!isPlayerValid || isSubmitting}
-                      className="w-full py-1.5 md:py-2 bg-white text-[var(--azul)] dark:text-[var(--rojo)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors hover:opacity-90 text-xs md:text-base mt-2"
+                      className="w-full py-1.5 md:py-2 bg-white text-[var(--primary)] dark:text-[var(--secondary)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors hover:opacity-90 text-xs md:text-base mt-2"
                     >
                       {isSubmitting ? "Validando..." : "Agregar Jugador"}
                     </button>

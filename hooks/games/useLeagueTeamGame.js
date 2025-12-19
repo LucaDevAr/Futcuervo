@@ -13,13 +13,102 @@ function normalizeText(text) {
     .trim();
 }
 
+// ================================
+// LEAGUE PROBABILITIES
+// ================================
+const highProbabilityLeagues = [
+  "Primera División",
+  "Primera División",
+  "Liga MX",
+  "Liga Portugal",
+  "LaLiga",
+  "Premier League",
+  "Serie A",
+  "Bundesliga",
+  "Eredivisie",
+  "Ligue 1",
+  "Liga FUTVE",
+  "Liga 1 Apertura",
+  "Premier Liga",
+  "Major League Soccer",
+  "Liga Dimayor",
+  "Liga AUF",
+  "Campeonato Brasileiro Série A",
+  "LigaPro Serie A",
+  "Liga de Primera",
+  "División Profesional",
+  "Primera Nacional",
+];
+
+const lowProbabilityLeagues = [
+  "Liga desconocida",
+  "Super League 1",
+  "Liga 1 Indonesia",
+  "Süper Lig",
+  "UAE Pro League",
+  "Prva Liga",
+  "efbet Liga",
+  "Malaysia Super League",
+  "Jupiler Pro League",
+  "Nemzeti Bajnokság",
+  "Premier de Ucrania",
+  "Saudi Pro League",
+  "Chinese Super League",
+  "J1 League",
+  "Indian Super League",
+  "Liga Panameña de Fútbol Clausura",
+  "Veikkausliiga",
+  "Scottish Premiership",
+  "Betclic 1 Liga",
+  "Qatar Stars League",
+  "Persian Gulf Pro League",
+  "Hong Kong Premier League",
+  "Primera División Apertura",
+  "Eliteserien",
+  "Cyprus League",
+  "Premijer Liga Bosne i Hercegovine",
+  "Liga Guate Apertura",
+  "Premier League Opening Round",
+  "Ligat ha'Al",
+  "Regionalliga West",
+  "Primera División Apertura",
+  "Iraq Stars League",
+  "Super League",
+  "Premyer Liqa",
+  "Super liga Srbije",
+  "Erovnuli Liga",
+  "Egyptian Premier League",
+  "Liga Nacional Apertura",
+  "SuperSport HNL",
+  "SuperLiga",
+  "SuperLiga",
+];
+
+const regularFactor = 1;
+const highFactor = 3;
+const lowFactor = 0.35;
+
+function getLeagueWeight(leagueName) {
+  const name = normalizeText(leagueName);
+
+  if (highProbabilityLeagues.some((l) => normalizeText(l) === name)) {
+    return highFactor;
+  }
+
+  if (lowProbabilityLeagues.some((l) => normalizeText(l) === name)) {
+    return lowFactor;
+  }
+
+  return regularFactor;
+}
+
 function getLeagueIdFromClubId(clubId, preloadedClubs) {
   if (!clubId) return null;
   const club = preloadedClubs.find(
     (c) => c._id?.toString() === clubId?.toString()
   );
   if (!club) {
-    console.warn("getLeagueIdFromClubId: club no encontrado", clubId);
+    // console.warn("getLeagueIdFromClubId: club no encontrado", clubId);
     return null;
   }
 
@@ -33,7 +122,7 @@ function getLeagueIdFromClubId(clubId, preloadedClubs) {
 
   if (club.league?._id) return club.league._id.toString();
 
-  console.warn("getLeagueIdFromClubId: club sin league válido", club);
+  // console.warn("getLeagueIdFromClubId: club sin league válido", club);
   return null;
 }
 
@@ -70,11 +159,11 @@ export function useLeagueTeamGame({
   const [availableLeagues, setAvailableLeagues] = useState([]);
 
   useEffect(() => {
-    console.log("🔄 useLeagueTeamGame INIT -----------------");
-    console.log("📦 preloadedPlayers:", preloadedPlayers?.length);
-    console.log("📦 preloadedClubs:", preloadedClubs?.length);
-    console.log("📦 preloadedLeagues:", preloadedLeagues?.length);
-    console.log("🏟 clubId:", clubId);
+    // console.log("🔄 useLeagueTeamGame INIT -----------------");
+    // console.log("📦 preloadedPlayers:", preloadedPlayers?.length);
+    // console.log("📦 preloadedClubs:", preloadedClubs?.length);
+    // console.log("📦 preloadedLeagues:", preloadedLeagues?.length);
+    // console.log("🏟 clubId:", clubId);
 
     const playersInClub = preloadedPlayers.filter(
       (player) =>
@@ -84,26 +173,26 @@ export function useLeagueTeamGame({
         )
     );
 
-    console.log("✅ Jugadores encontrados en el club:", playersInClub.length);
-    playersInClub
-      .slice(0, 10)
-      .forEach((p) =>
-        console.log(
-          `   - ${p.fullName} | positions: ${p.positions?.join?.(", ")}`
-        )
-      );
+    // console.log("✅ Jugadores encontrados en el club:", playersInClub.length);
+    // playersInClub
+    //   .slice(0, 10)
+    //   .forEach((p) =>
+    //     console.log(
+    //       `   - ${p.fullName} | positions: ${p.positions?.join?.(", ")}`
+    //     )
+    //   );
     setClubPlayers(playersInClub);
 
     const clubLeagueId = getLeagueIdFromClubId(clubId, preloadedClubs);
-    console.log(
-      "🏆 Liga actual del club (resuelta desde clubs):",
-      clubLeagueId
-    );
+    // console.log(
+    //   "🏆 Liga actual del club (resuelta desde clubs):",
+    //   clubLeagueId
+    // );
 
     const leagues = preloadedLeagues.filter(
       (l) => l._id?.toString() !== clubLeagueId
     );
-    console.log("🌍 Ligas alternativas disponibles:", leagues.length);
+    // console.log("🌍 Ligas alternativas disponibles:", leagues.length);
     setAvailableLeagues(leagues);
   }, [preloadedPlayers, preloadedLeagues, preloadedClubs, clubId]);
 
@@ -141,7 +230,7 @@ export function useLeagueTeamGame({
       }
       setFormation(chosenFormation);
     } catch (err) {
-      console.error("Error initializing formation:", err);
+      // console.error("Error initializing formation:", err);
       setFormation("");
       setPositions(
         Array.from({ length: 11 }).map((_, i) => ({
@@ -157,22 +246,22 @@ export function useLeagueTeamGame({
   }, []);
 
   const initializeGame = useCallback(() => {
-    console.log("🔥 initializeGame() called");
-    console.log("clubId:", clubId);
-    console.log("clubPlayers.length:", clubPlayers?.length);
-    console.log("availableLeagues.length:", availableLeagues?.length);
+    // console.log("🔥 initializeGame() called");
+    // console.log("clubId:", clubId);
+    // console.log("clubPlayers.length:", clubPlayers?.length);
+    // console.log("availableLeagues.length:", availableLeagues?.length);
 
     setErrorMessage(null);
 
     if (!clubPlayers || clubPlayers.length === 0) {
-      console.warn("❌ No players in club");
+      // console.warn("❌ No players in club");
       setErrorMessage("No hay jugadores disponibles en este club.");
       initializeFormationAndPositions();
       return;
     }
 
     if (!availableLeagues || availableLeagues.length === 0) {
-      console.warn("❌ No available leagues");
+      // console.warn("❌ No available leagues");
       setErrorMessage("No hay ligas alternativas disponibles.");
       initializeFormationAndPositions();
       return;
@@ -182,7 +271,18 @@ export function useLeagueTeamGame({
 
     let selectedLeague = null;
     const shuffle = (arr) => arr.sort(() => Math.random() - 0.5);
-    const leaguesShuffled = shuffle([...availableLeagues]);
+    const weightedLeagues = [];
+
+    availableLeagues.forEach((league) => {
+      const weight = getLeagueWeight(league.name);
+      const times = Math.max(1, Math.round(weight * 15));
+
+      for (let i = 0; i < times; i++) {
+        weightedLeagues.push(league);
+      }
+    });
+
+    const leaguesShuffled = weightedLeagues.sort(() => Math.random() - 0.5);
 
     for (const candidateLeague of leaguesShuffled) {
       const validPlayers = clubPlayers.filter(
@@ -200,20 +300,20 @@ export function useLeagueTeamGame({
 
       if (validPlayers.length > 0) {
         selectedLeague = candidateLeague;
-        console.log(
-          "✅ selectedLeague:",
-          selectedLeague.name,
-          selectedLeague._id
-        );
+        // console.log(
+        //   "✅ selectedLeague:",
+        //   selectedLeague.name,
+        //   selectedLeague._id
+        // );
         break;
       }
     }
 
     if (!selectedLeague) {
-      console.warn("❌ No league found with compatible players");
-      setErrorMessage(
-        "No hay jugadores que hayan jugado en otras ligas para iniciar el juego."
-      );
+      // console.warn("❌ No league found with compatible players");
+      // setErrorMessage(
+      //   "No hay jugadores que hayan jugado en otras ligas para iniciar el juego."
+      // );
       return;
     }
 
@@ -231,7 +331,7 @@ export function useLeagueTeamGame({
     );
 
     if (!eligiblePlayers || eligiblePlayers.length === 0) {
-      console.warn("❌ Selected league pero no eligiblePlayers");
+      // console.warn("❌ Selected league pero no eligiblePlayers");
       setErrorMessage("Ocurrió un error seleccionando jugadores válidos.");
       return;
     }
@@ -244,11 +344,11 @@ export function useLeagueTeamGame({
     setCurrentPlayer(chosen);
     setErrorMessage(null);
 
-    console.log(
-      "🎯 Player chosen for initial target:",
-      chosen.fullName,
-      chosen._id
-    );
+    // console.log(
+    //   "🎯 Player chosen for initial target:",
+    //   chosen.fullName,
+    //   chosen._id
+    // );
   }, [
     clubPlayers,
     availableLeagues,
@@ -305,10 +405,10 @@ export function useLeagueTeamGame({
       }
 
       if (!playerObj) {
-        console.warn(
-          "validatePlayer: jugador no encontrado para:",
-          inputOrPlayer
-        );
+        // console.warn(
+        //   "validatePlayer: jugador no encontrado para:",
+        //   inputOrPlayer
+        // );
         return {
           valid: false,
           message: "Jugador no encontrado. Verificá el nombre.",
@@ -386,7 +486,7 @@ export function useLeagueTeamGame({
         club: matchingCareerEntry.club,
       };
     } catch (err) {
-      console.error("validatePlayer error:", err);
+      // console.error("validatePlayer error:", err);
       return { valid: false, message: "Error validando jugador." };
     }
   }
@@ -443,7 +543,22 @@ export function useLeagueTeamGame({
       (league) => !normalizedUsed.includes(league._id?.toString())
     );
 
-    for (const league of unusedLeagues) {
+    const weightedUnusedLeagues = [];
+
+    unusedLeagues.forEach((league) => {
+      const weight = getLeagueWeight(league.name);
+      const times = Math.max(1, Math.round(weight * 10));
+
+      for (let i = 0; i < times; i++) {
+        weightedUnusedLeagues.push(league);
+      }
+    });
+
+    const shuffledLeagues = weightedUnusedLeagues.sort(
+      () => Math.random() - 0.5
+    );
+
+    for (const league of shuffledLeagues) {
       const validPlayers = clubPlayers.filter((p) =>
         (p.career || []).some((entry) => {
           const careerClubId = entry.club?._id || entry.club;
@@ -487,27 +602,30 @@ export function useLeagueTeamGame({
     }
 
     const allPossibleLeagues = [];
+
     coachesInClub.forEach((coach) => {
       coach.careerPath?.forEach((careerEntry) => {
         const club = careerEntry.club;
         if (!club) return;
+
         const clubLeagueId = getLeagueIdFromClubId(
           club._id || club,
           preloadedClubs
         );
         if (!clubLeagueId) return;
-        if (!usedLeagues.includes(clubLeagueId)) {
-          const league = availableLeagues.find(
-            (l) => l._id?.toString() === clubLeagueId
-          );
-          if (
-            league &&
-            !allPossibleLeagues.some(
-              (l) => l._id?.toString() === league._id?.toString()
-            )
-          ) {
-            allPossibleLeagues.push(league);
-          }
+        if (usedLeagues.includes(clubLeagueId)) return;
+
+        const league = availableLeagues.find(
+          (l) => l._id?.toString() === clubLeagueId
+        );
+
+        if (
+          league &&
+          !allPossibleLeagues.some(
+            (l) => l._id?.toString() === league._id?.toString()
+          )
+        ) {
+          allPossibleLeagues.push(league);
         }
       });
     });
@@ -517,8 +635,23 @@ export function useLeagueTeamGame({
       return null;
     }
 
+    // ===============================
+    // 🔥 PONDERACIÓN POR LIGA
+    // ===============================
+    const weightedLeagues = [];
+
+    allPossibleLeagues.forEach((league) => {
+      const weight = getLeagueWeight(league.name);
+      const times = Math.max(1, Math.round(weight * 10));
+
+      for (let i = 0; i < times; i++) {
+        weightedLeagues.push(league);
+      }
+    });
+
     const selectedLeague =
-      allPossibleLeagues[Math.floor(Math.random() * allPossibleLeagues.length)];
+      weightedLeagues[Math.floor(Math.random() * weightedLeagues.length)];
+
     setCurrentLeague(selectedLeague);
     return selectedLeague;
   }, [preloadedCoaches, clubId, usedLeagues, availableLeagues, preloadedClubs]);
@@ -622,48 +755,63 @@ export function useLeagueTeamGame({
   const handlePlayerSubmit = useCallback(
     async (e) => {
       e?.preventDefault?.();
-      if (!playerInput?.trim() || !currentLeague || isSubmitting) return;
+      const trimmed = playerInput?.trim();
+      if (!trimmed || !currentLeague || isSubmitting) return;
 
       setIsSubmitting(true);
       setPositionErrorMessage(null);
 
       const vacantPositions = getVacantPositions();
       const validation = validatePlayer(
-        playerInput.trim(),
+        trimmed,
         currentLeague._id,
         usedPlayers,
         vacantPositions
       );
 
+      // --- Si no es válido ---
       if (!validation.valid) {
-        if (onIncorrectAnswer) onIncorrectAnswer(validation.message);
+        const { errorType, message, player } = validation;
 
-        if (validation.errorType === "position_unavailable") {
-          const playerName = validation.player?.fullName || playerInput;
+        // -----------------------------
+        // Caso especial: posición no disponible -> NO restar vidas
+        // -----------------------------
+        if (errorType === "position_unavailable") {
+          const playerName = player?.fullName || trimmed;
           const playerPositions =
-            validation.player?.positions?.join(", ") || "desconocidas";
-          const message = `${playerName} no puede entrar en la formación. Sus posiciones (${playerPositions}) no están disponibles en el campo.`;
+            (player?.positions || player?.availablePositions || []).join(
+              ", "
+            ) || "desconocidas";
 
-          setPositionErrorMessage(message);
+          const msg = `${playerName} no puede entrar en la formación. Sus posiciones (${playerPositions}) no están disponibles en el campo.`;
+
+          // Mostrar mensaje en UI (positionErrorMessage) y no tocar vidas
+          setPositionErrorMessage(msg);
           setTimeout(() => setPositionErrorMessage(null), 3000);
-          setPlayerInput("");
-          setIsSubmitting(false);
-          return;
-        } else {
-          toast.error(validation.message);
+
+          // limpiar input / estado y salir SIN llamar onIncorrectAnswer
           setPlayerInput("");
           setIsSubmitting(false);
           return;
         }
+
+        // -----------------------------
+        // Otros errores -> comportamiento normal (sí cuentan como incorrectos)
+        // -----------------------------
+        if (onIncorrectAnswer) onIncorrectAnswer(message);
+        toast.error(message);
+        setPlayerInput("");
+        setIsSubmitting(false);
+        return;
       }
 
+      // --- Si es válido ---
       const playerObj = validation.player;
       const playerPositions =
         validation.availablePositions || playerObj.positions || [];
       const availableSpecificPositions = vacantPositions.filter((vacantPos) =>
         playerPositions.includes(vacantPos)
       );
-
       const uniquePositions = [...new Set(availableSpecificPositions)];
 
       if (uniquePositions.length > 1) {
@@ -811,7 +959,7 @@ export function useLeagueTeamGame({
         return;
       }
 
-      console.log("✅ Coach validado correctamente:", validation.coach);
+      // console.log("✅ Coach validado correctamente:", validation.coach);
 
       setCoach(validation.coach);
       coachRef.current = validation.coach;
@@ -821,7 +969,7 @@ export function useLeagueTeamGame({
       setIsSubmitting(false);
 
       if (gameLogic && gameLogic.endGame) {
-        console.log("🎯 Terminando juego con coach:", validation.coach);
+        // console.log("🎯 Terminando juego con coach:", validation.coach);
         gameLogic.endGame(true, { coach: validation.coach });
       }
     },

@@ -1,27 +1,38 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useUserStore } from "@/stores/userStore";
 
 export function useClubMemberships() {
-  const [memberships, setMemberships] = useState([]);
+  const user = useUserStore((s) => s.user);
+  const setUser = useUserStore((s) => s.setUser);
 
-  const load = async () => {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/api/club-members/mine`,
-      {
-        credentials: "include",
-      }
-    );
-    setMemberships(await res.json());
+  const memberships = user?.clubMembers ?? [];
+
+  const syncUserCache = (newUser) => {
+    localStorage.setItem("user", JSON.stringify(newUser));
+    setUser(newUser);
   };
 
   const join = async (clubId, role) => {
-    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/club-members/join`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clubId, role }),
-      credentials: "include",
-    });
-    await load();
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/club-members/join`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clubId, role }),
+        credentials: "include",
+      }
+    );
+
+    const data = await res.json();
+    if (!res.ok) return { error: data.error };
+
+    const newUser = {
+      ...user,
+      clubMembers: [...memberships, data.membership], // 👈 SE AGREGA BIEN
+    };
+
+    syncUserCache(newUser);
   };
 
   const leave = async (clubId, role) => {
@@ -36,17 +47,17 @@ export function useClubMemberships() {
     );
 
     const data = await res.json();
+    if (!res.ok) return { error: data.error };
 
-    if (!res.ok) {
-      return { error: data.error };
-    }
+    const newUser = {
+      ...user,
+      clubMembers: memberships.filter(
+        (m) => !(m.club.id === clubId && m.role === role) // 👈 FILTRA CORRECTAMENTE
+      ),
+    };
 
-    await load();
+    syncUserCache(newUser);
   };
-
-  useEffect(() => {
-    load();
-  }, []);
 
   return { memberships, join, leave };
 }

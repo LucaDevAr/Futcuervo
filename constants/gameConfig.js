@@ -7,8 +7,9 @@ import {
   CircleUserRound,
   User,
   Earth,
+  Shield,
+  CircleFadingArrowUp,
 } from "lucide-react";
-import { BiFootball } from "react-icons/bi";
 
 export const GAME_CONFIGS = {
   history: {
@@ -19,12 +20,8 @@ export const GAME_CONFIGS = {
         <div className="w-48 h-48 rounded-2xl bg-[var(--primary)] dark:bg-[var(--secondary)] flex items-center justify-center shadow-2xl mb-6">
           <BookOpen size={96} className="text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-[var(--primary)] dark:text-[var(--blanco)]">
-          Historia del día
-        </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)] text-center">
-          Pon a prueba tu conocimiento histórico
-        </p>
+        <h2 className="text-2xl font-bold">Historia del día</h2>
+        <p className="text-center">Pon a prueba tu conocimiento histórico</p>
       </div>
     ),
     objective: "Responde correctamente sobre la historia de San Lorenzo",
@@ -56,16 +53,14 @@ export const GAME_CONFIGS = {
         <div className="w-48 h-48 rounded-2xl bg-[var(--primary)] dark:bg-[var(--secondary)] flex items-center justify-center shadow-2xl mb-6">
           <Shirt size={96} className="text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-[var(--primary)] dark:text-[var(--blanco)]">
-          Camiseta del día
-        </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)]">
+        <h2 className="text-2xl font-bold">Camiseta del día</h2>
+        <p className="text-center">
           Pon a prueba tus conocimientos de indumentaria
         </p>
       </div>
     ),
     objective: "Adivina todos los detalles de la camiseta",
-    timeLimit: 300,
+    timeLimit: 60,
     modes: ["time", "lives"],
     rules: {
       time: [
@@ -104,16 +99,12 @@ export const GAME_CONFIGS = {
         <div className="w-48 h-48 rounded-2xl bg-[var(--primary)] dark:bg-[var(--secondary)] flex items-center justify-center shadow-2xl mb-6">
           <Music size={96} className="text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-[var(--primary)] dark:text-[var(--blanco)]">
-          Canción del día
-        </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)]">
-          Pon a prueba tu conocimiento musicale
-        </p>
+        <h2 className="text-2xl font-bold">Canción del día</h2>
+        <p className="text-center">Pon a prueba tu conocimiento musicales</p>
       </div>
     ),
     objective: "Adivina la canción y sus detalles originales",
-    timeLimit: 300,
+    timeLimit: 60,
     modes: ["time", "lives"],
     rules: {
       time: [
@@ -149,12 +140,8 @@ export const GAME_CONFIGS = {
         <div className="w-48 h-48 rounded-2xl bg-[var(--primary)] dark:bg-[var(--secondary)] flex items-center justify-center shadow-2xl mb-6">
           <Film size={96} className="text-white" />
         </div>
-        <h2 className="text-2xl font-bold text-[var(--primary)] dark:text-[var(--blanco)]">
-          Video del día
-        </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)]">
-          Pon a prueba tu conocimiento futbolístico
-        </p>
+        <h2 className="text-2xl font-bold text-center">Video del día</h2>
+        <p className="text-center">Pon a prueba tu conocimiento futbolístico</p>
       </div>
     ),
     objective:
@@ -187,7 +174,7 @@ export const GAME_CONFIGS = {
 
   goals: {
     title: "Más o Menos Goles",
-    icon: BiFootball,
+    icon: CircleFadingArrowUp,
     visual: () => (
       <div className="flex flex-col items-center justify-center">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg w-72 text-center">
@@ -198,7 +185,7 @@ export const GAME_CONFIGS = {
                 Jugador 1
               </h3>
               <p className="text-lg font-bold text-[var(--primary)] dark:text-[var(--blanco)]">
-                20 goles
+                43 goles
               </p>
             </div>
 
@@ -210,7 +197,7 @@ export const GAME_CONFIGS = {
                 Jugador 2
               </h3>
               <p className="text-lg font-bold text-[var(--primary)] dark:text-[var(--blanco)]">
-                11 goles
+                22 goles
               </p>
             </div>
           </div>
@@ -225,12 +212,8 @@ export const GAME_CONFIGS = {
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-[var(--primary)] dark:text-[var(--blanco)] mt-4">
-          Más o Menos Goles
-        </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)] text-center">
-          ¿Tiene más o menos goles que el anterior?
-        </p>
+        <h2 className="text-2xl font-bold mt-4">Más o Menos Goles</h2>
+        <p className="text-center">¿Tiene más o menos goles que el anterior?</p>
       </div>
     ),
     objective: "Adivina si el jugador tiene más o menos goles que el anterior",
@@ -301,10 +284,10 @@ export const GAME_CONFIGS = {
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-[var(--primary)] dark:text-[var(--blanco)] mt-4">
+        <h2 className="text-2xl font-bold mt-4 text-center">
           Más o Menos Presencias
         </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)] text-center">
+        <p className="text-center">
           ¿Tiene más o menos presencias que el anterior?
         </p>
       </div>
@@ -342,30 +325,48 @@ export const GAME_CONFIGS = {
     title: "Trayectoria",
     icon: User,
     visual: () => (
-      <div className="relative bg-white dark:bg-gray-800 rounded-xl p-3 h-[350px] w-[250px] flex items-center justify-center">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[var(--primary)] dark:bg-[var(--secondary)] rounded-full"></div>
-            <div className="text-sm font-medium text-[var(--primary)] dark:text-[var(--secondary)]">
-              Club 1
+      <div className="flex flex-col items-center justify-center">
+        {/* CARD */}
+        <div className="bg-gray-500 dark:bg-gray-800 rounded-xl p-4 shadow-lg w-52 text-center relative flex items-center justify-center">
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-[var(--primary)] dark:bg-[var(--secondary)] rounded-full flex items-center justify-center">
+                <Shield className="text-white" />
+              </div>
+              <div className="text-sm font-medium text-[var(--primary)] dark:text-[var(--secondary)]">
+                Club 1
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gray-900 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                <Shield className="text-white" />
+              </div>
+              <div className="text-sm font-medium text-black dark:text-gray-300">
+                Club ???
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gray-900 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                <Shield className="text-white" />
+              </div>
+              <div className="text-sm font-medium text-black dark:text-gray-300">
+                Club ???
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-            <div className="text-sm font-medium text-gray-500">Club ???</div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
-            <div className="text-sm font-medium text-gray-500">Club ???</div>
-          </div>
         </div>
-        <div className="absolute bottom-4 left-0 right-0 text-center text-sm font-medium text-[var(--primary)] dark:text-[var(--secondary)]">
-          Trayectoria del día
-        </div>
+
+        {/* TÍTULO ABAJO */}
+        <h2 className="text-xl font-bold mt-4">Trayectoria del día</h2>
+        <p className="text-center text-sm opacity-80">
+          Adivina los clubes del jugador
+        </p>
       </div>
     ),
     objective: "Adivina el jugador por su carrera profesional",
-    timeLimit: 300, // 5 minutos
+    timeLimit: 30, // 30 segundos
     modes: ["time", "lives"],
     rules: {
       time: [
@@ -414,12 +415,8 @@ export const GAME_CONFIGS = {
             </div>
           ))}
         </div>
-        <h2 className="text-2xl font-bold text-[var(--primary)] dark:text-[var(--blanco)]">
-          Jugador del día
-        </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)] text-center">
-          Adivina el nombre del jugador
-        </p>
+        <h2 className="text-2xl font-bold">Jugador del día</h2>
+        <p className="text-center">Adivina el nombre del jugador</p>
       </div>
     ),
 
@@ -448,17 +445,17 @@ export const GAME_CONFIGS = {
     mediaTypes: ["image"],
     questionBased: false,
     stepBased: true,
-    timeLimit: 300, // 5 minutos
+    timeLimit: 30, // 30 segundos
     lives: 3,
     useStreak: true,
   },
 
   league: {
-    title: "Liga Mundial",
+    title: "Equipo de Ligas",
     icon: Earth,
     visual: () => (
       <div className="flex flex-col items-center justify-center">
-        <div className="w-48 h-48 rounded-2xl bg-[var(--azul)] dark:bg-[var(--rojo)] shadow-2xl mb-6 relative overflow-hidden p-2">
+        <div className="w-48 h-48 rounded-2xl bg-[var(--primary)] dark:bg-[var(--secondary)] shadow-2xl mb-6 relative overflow-hidden p-2">
           {/* Fondo de cancha táctico */}
           <div className="absolute inset-0 bg-green-500 rounded-xl overflow-hidden">
             <div className="absolute inset-0 border-2 border-white opacity-70"></div>
@@ -490,7 +487,7 @@ export const GAME_CONFIGS = {
                 className="absolute w-6 h-6 transform -translate-x-1/2 -translate-y-1/2"
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
-                <div className="w-full h-full bg-[var(--rojo)] dark:bg-[var(--azul)] border border-white rounded-full flex items-center justify-center">
+                <div className="w-full h-full bg-[var(--secondary)] dark:bg-[var(--primary)] border border-white rounded-full flex items-center justify-center">
                   <span className="text-[10px] font-bold text-white">
                     {pos.position}
                   </span>
@@ -499,22 +496,20 @@ export const GAME_CONFIGS = {
             ))}
 
             {/* DT */}
-            <div className="absolute bottom-2 right-2 w-6 h-6 bg-[var(--azul)] dark:bg-[var(--rojo)] rounded-full flex items-center justify-center">
+            <div className="absolute bottom-2 right-2 w-6 h-6 bg-[var(--primary)] dark:bg-[var(--secondary)] rounded-full flex items-center justify-center">
               <span className="text-[10px] font-bold text-white">DT</span>
             </div>
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-[var(--azul)] dark:text-[var(--blanco)] text-center">
+        <h2 className="text-2xl font-bold text-center">
           Equipo de Ligas del día
         </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)] text-center">
-          Pon a prueba tu conocimiento táctico
-        </p>
+        <p className="text-center">Pon a prueba tu conocimiento táctico</p>
       </div>
     ),
     objective: "Arma tu equipo con jugadores que pasaron por San Lorenzo",
-    timeLimit: 300, // 5 minutos
+    timeLimit: 60, // 1 minuto
     modes: ["time", "lives"],
     rules: {
       time: [
@@ -552,8 +547,8 @@ export const GAME_CONFIGS = {
       />
     ),
     visual: () => (
-      <div className="flex flex-col items-center justify-center">
-        <div className="w-48 h-48 rounded-2xl bg-[var(--azul)] dark:bg-[var(--rojo)] shadow-2xl mb-6 relative overflow-hidden p-2">
+      <div className="flex flex-col items-center justify-center text-[var(--text)]">
+        <div className="w-48 h-48 rounded-2xl bg-[var(--primary)] dark:bg-[var(--secondary)] shadow-2xl mb-6 relative overflow-hidden p-2">
           {/* Fondo de cancha táctico */}
           <div className="absolute inset-0 bg-green-500 rounded-xl overflow-hidden">
             <div className="absolute inset-0 border-2 border-white opacity-70"></div>
@@ -585,7 +580,7 @@ export const GAME_CONFIGS = {
                 className="absolute w-6 h-6 transform -translate-x-1/2 -translate-y-1/2"
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
-                <div className="w-full h-full bg-[var(--rojo)] dark:bg-[var(--azul)] border border-white rounded-full flex items-center justify-center">
+                <div className="w-full h-full bg-[var(--secondary)] dark:bg-[var(--primary)] border border-white rounded-full flex items-center justify-center">
                   <span className="text-[10px] font-bold text-white">
                     {pos.position}
                   </span>
@@ -594,22 +589,20 @@ export const GAME_CONFIGS = {
             ))}
 
             {/* DT */}
-            <div className="absolute bottom-2 right-2 w-6 h-6 bg-[var(--azul)] dark:bg-[var(--rojo)] rounded-full flex items-center justify-center">
+            <div className="absolute bottom-2 right-2 w-6 h-6 bg-[var(--primary)] dark:bg-[var(--secondary)] rounded-full flex items-center justify-center">
               <span className="text-[10px] font-bold text-white">DT</span>
             </div>
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-[var(--azul)] dark:text-[var(--blanco)] text-center">
+        <h2 className="text-2xl font-bold text-center">
           Equipo Nacional del día
         </h2>
-        <p className="text-[var(--gris-oscuro)] dark:text-[var(--gris)] text-center">
-          Pon a prueba tu conocimiento táctico
-        </p>
+        <p className="text-center">Pon a prueba tu conocimiento táctico</p>
       </div>
     ),
     objective: "Arma tu equipo con jugadores que pasaron por San Lorenzo",
-    timeLimit: 300, // 5 minutos
+    timeLimit: 60, // 1 minuto
     modes: ["time", "lives"],
     rules: {
       time: [

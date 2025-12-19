@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { User } from "lucide-react";
 
 // --- Funciones utilitarias ---
@@ -35,23 +35,22 @@ function highlightMatches(fullName, query) {
     .join("");
 }
 
-// --- Componente principal ---
-export default function PlayerAutocomplete({
+export default function CoachAutocomplete({
   value,
   onChange,
-  onPlayerSelect,
+  onCoachSelect,
   placeholder,
   disabled = false,
   autoFocus = false,
   className = "",
   onValidSelectionChange,
   onSubmitTrigger,
-  cachedPlayers = [],
+  cachedCoaches = [],
 }) {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [selectedCoach, setSelectedCoach] = useState(null);
   const [hasEnteredOnce, setHasEnteredOnce] = useState(false);
 
   const inputRef = useRef(null);
@@ -63,17 +62,17 @@ export default function PlayerAutocomplete({
 
   // --- Avisar si hay selección válida ---
   useEffect(() => {
-    onValidSelectionChange?.(!!selectedPlayer);
-  }, [selectedPlayer, onValidSelectionChange]);
+    onValidSelectionChange?.(!!selectedCoach);
+  }, [selectedCoach, onValidSelectionChange]);
 
   useEffect(() => {
     const query = value.trim();
     if (query.length < 2) {
       // Reduced from 3 to 2 for better UX
-      if (suggestions.length > 0 || showSuggestions || selectedPlayer) {
+      if (suggestions.length > 0 || showSuggestions || selectedCoach) {
         setSuggestions([]);
         setShowSuggestions(false);
-        setSelectedPlayer(null);
+        setSelectedCoach(null);
         setHasEnteredOnce(false);
       }
       return;
@@ -82,7 +81,7 @@ export default function PlayerAutocomplete({
     if (hasEnteredOnce) return;
 
     const normalizedQuery = normalizeText(query);
-    const matches = cachedPlayers.filter((p) =>
+    const matches = cachedCoaches.filter((p) =>
       normalizeText(p.fullName || p.displayName || "").includes(normalizedQuery)
     );
 
@@ -101,12 +100,12 @@ export default function PlayerAutocomplete({
         normalizeText(p.fullName || p.displayName || "") === normalizedQuery
     );
 
-    if (exactMatch && exactMatch._id !== selectedPlayer?._id) {
-      handlePlayerSelect(exactMatch);
-    } else if (!exactMatch && selectedPlayer) {
-      setSelectedPlayer(null);
+    if (exactMatch && exactMatch._id !== selectedCoach?._id) {
+      handleCoachSelect(exactMatch);
+    } else if (!exactMatch && selectedCoach) {
+      setSelectedCoach(null);
     }
-  }, [value, cachedPlayers]);
+  }, [value, cachedCoaches]);
 
   const handleInputChange = (e) => {
     onChange(e.target.value);
@@ -114,10 +113,10 @@ export default function PlayerAutocomplete({
     setHasEnteredOnce(false);
   };
 
-  const handlePlayerSelect = (player) => {
-    onChange(player.fullName || player.displayName);
-    onPlayerSelect?.(player);
-    setSelectedPlayer(player);
+  const handleCoachSelect = (coach) => {
+    onChange(coach.fullName || coach.displayName);
+    onCoachSelect?.(coach);
+    setSelectedCoach(coach);
     setShowSuggestions(false);
     setSuggestions([]);
     setSelectedIndex(-1);
@@ -147,22 +146,22 @@ export default function PlayerAutocomplete({
 
         if (showSuggestions && suggestions.length > 0) {
           if (selectedIndex >= 0) {
-            handlePlayerSelect(suggestions[selectedIndex]);
+            handleCoachSelect(suggestions[selectedIndex]);
           } else if (suggestions.length === 1) {
-            handlePlayerSelect(suggestions[0]);
+            handleCoachSelect(suggestions[0]);
           }
         } else if (value.trim().length > 0 && onSubmitTrigger) {
-          if (selectedPlayer) {
+          if (selectedCoach) {
             onSubmitTrigger();
           } else {
-            const freePlayer = {
+            const freeCoach = {
               _id: "free-text",
               fullName: value,
               displayName: value,
               positions: [],
               nationality: { name: "" },
             };
-            handlePlayerSelect(freePlayer);
+            handleCoachSelect(freeCoach);
             setTimeout(() => onSubmitTrigger(), 0);
           }
         }
@@ -208,18 +207,18 @@ export default function PlayerAutocomplete({
               maxHeight,
             }}
           >
-            {suggestions.map((player, index) => (
+            {suggestions.map((coach, index) => (
               <div
-                key={player._id}
+                key={coach._id}
                 className={`flex items-center gap-3 p-2 cursor-pointer hover:bg-[var(--primary)] dark:hover:bg-[var(--secondary)]`}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handlePlayerSelect(player)}
+                onClick={() => handleCoachSelect(coach)}
               >
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600 flex-shrink-0">
-                  {player.profileImage ? (
+                  {coach.profileImage ? (
                     <img
-                      src={player.profileImage || "/placeholder.svg"}
-                      alt={player.fullName || player.displayName}
+                      src={coach.profileImage}
+                      alt={coach.fullName}
                       className="w-full h-full object-cover"
                       onError={(e) =>
                         (e.currentTarget.src = "/placeholder.svg")
@@ -231,20 +230,19 @@ export default function PlayerAutocomplete({
                     </div>
                   )}
                 </div>
+
                 <div className="flex-1 min-w-0">
                   <div
-                    className="font-medium text-sm text-white"
+                    className="text-white font-medium text-sm"
                     dangerouslySetInnerHTML={{
-                      __html: highlightMatches(
-                        player.fullName || player.displayName,
-                        value
-                      ),
+                      __html: highlightMatches(coach.fullName, value),
                     }}
                   />
-                  <div className="text-xs text-gray-300">
-                    {player.positions.join(", ")} •{" "}
-                    {player.nationality?.name || ""}
-                  </div>
+                  {coach.nationality?.name && (
+                    <div className="text-xs text-gray-300">
+                      {coach.nationality.name}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

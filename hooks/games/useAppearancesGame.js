@@ -5,6 +5,19 @@ import { useGameLogic } from "@/hooks/games/useGameLogic";
 import { GAME_CONFIGS } from "@/constants/gameConfig";
 import { useGameAttempts } from "@/hooks/game-state/useGameAttempts";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
+import { useGameAttemptsStore } from "@/stores/gameAttemptsStore";
+import { useUserStore } from "@/stores/userStore";
+import { debugLog } from "@/utils/debugLogger";
+
+const getPlayerWeight = (player) => {
+  const apps = player.appearances || 0;
+
+  if (apps <= 5) return 0.4;
+  if (apps <= 10) return 0.7;
+  if (apps <= 30) return 1.5;
+  if (apps <= 100) return 2.0;
+  return 3.0;
+};
 
 export function useAppearancesGame({
   gameMode,
@@ -29,13 +42,18 @@ export function useAppearancesGame({
   const [fetchError, setFetchError] = useState(null);
   const [hasWon, setHasWon] = useState(false);
 
+  const user = useUserStore((state) => state.user);
+
   const nextPlayerRef = useRef(null);
   const usedPlayersRef = useRef(new Set());
-  const hasFetchedRef = useRef(false);
   const hasWonRef = useRef(false);
+
+  const isSavingRef = useRef(false);
+  const hasFetchedRef = useRef(false);
 
   const localAttempts = useLocalGameAttempts(clubId);
   const { getLastAttempt, refetch: refetchAttempts } = useGameAttempts(clubId);
+  const gameAttemptsStore = useGameAttemptsStore();
 
   const gameLogic = useGameLogic({
     gameMode,
@@ -74,15 +92,28 @@ export function useAppearancesGame({
 
   const saveGameAttempt = useCallback(
     async (won, gameStats, gameData) => {
-      try {
-        const lastAttemptData = localAttempts
-          ? localAttempts.getLastAttempt("appearances")
-          : getLastAttempt("appearances");
+      if (isSavingRef.current) return; // Prevent duplicate saves
+      isSavingRef.current = true;
 
+      try {
+        debugLog.hookLifecycle("useAppearancesGame", "save_start", {
+          clubId: clubId || "global",
+          won,
+        });
+
+        const lastAttemptData = user
+          ? getLastAttempt("appearances") // ✅ ONLINE
+          : localAttempts.getLastAttempt("appearances"); // ✅ OFFLINE
+
+        // 🔒 Normalización segura
         const currentScore = score;
-        const recordScore = lastAttemptData?.recordScore
-          ? Math.max(currentScore, lastAttemptData.recordScore)
-          : currentScore;
+
+        // ⛓️ El récord SIEMPRE viene del último intento guardado
+        const previousRecord = Number.isFinite(lastAttemptData?.recordScore)
+          ? lastAttemptData.recordScore
+          : 0;
+
+        const recordScore = Math.max(previousRecord, currentScore);
 
         const attemptData = {
           gameType: "appearances",
@@ -95,14 +126,22 @@ export function useAppearancesGame({
           gameMode,
           gameData,
           streak: won ? (lastAttemptData?.streak || 0) + 1 : 0,
-          date: new Date(),
+          date: new Date().toISOString(),
         };
 
-        if (localAttempts) {
+        if (!user) {
+          // Guardado local solamente cuando NO hay usuario
           localAttempts.updateAttempt("appearances", attemptData);
           isSavingRef.current = false;
           return;
         }
+
+        debugLog.apiRequest(
+          "POST",
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/appearances/save`,
+          attemptData,
+          "useAppearancesGame"
+        );
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/appearances/save`,
@@ -116,17 +155,36 @@ export function useAppearancesGame({
 
         if (!response.ok)
           throw new Error(`Error al guardar: ${response.status}`);
-        await refetchAttempts();
+
+        const { attempt: savedAttempt } = await response.json();
+        if (savedAttempt) {
+          gameAttemptsStore.updateAttempt(clubId, "appearances", {
+            ...attemptData,
+            streak: savedAttempt.streak, // Use backend-calculated streak
+            _id: savedAttempt._id,
+            createdAt: savedAttempt.createdAt,
+            updatedAt: savedAttempt.updatedAt,
+          });
+          if (!user) {
+            localAttempts.updateAttempt("appearances", {
+              ...attemptData,
+              streak: savedAttempt.streak,
+              _id: savedAttempt._id,
+              createdAt: savedAttempt.createdAt,
+              updatedAt: savedAttempt.updatedAt,
+            });
+          }
+        }
       } catch (error) {
+        debugLog.apiError("saveGameAttempt", error, "useAppearancesGame");
         console.error("Error saving game attempt:", error);
+      } finally {
+        isSavingRef.current = false;
       }
     },
-    [score, getLastAttempt, gameMode, gameLogic.lives, refetchAttempts, clubId]
+    [getLastAttempt, localAttempts, gameMode, clubId, gameAttemptsStore]
   );
 
-  // -------------------------------
-  // ⚽ Manejo de stats e imagen por club
-  // -------------------------------
   const getClubStats = useCallback(
     (player) =>
       player?.clubsStats?.find(
@@ -213,9 +271,29 @@ export function useAppearancesGame({
     const available = players.filter((p) => !usedPlayersRef.current.has(p._id));
     if (available.length === 0) return null;
 
-    const selected = available[Math.floor(Math.random() * available.length)];
-    usedPlayersRef.current.add(selected._id);
-    return selected;
+    // Calcular pesos
+    const weights = available.map((p) => getPlayerWeight(p));
+
+    // Suma total
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+    // Número random ponderado
+    let random = Math.random() * totalWeight;
+
+    // Selección ponderada
+    for (let i = 0; i < available.length; i++) {
+      if (random < weights[i]) {
+        const selected = available[i];
+        usedPlayersRef.current.add(selected._id);
+        return selected;
+      }
+      random -= weights[i];
+    }
+
+    // Fallback (casi nunca sucede)
+    const fallback = available[0];
+    usedPlayersRef.current.add(fallback._id);
+    return fallback;
   }, [players]);
 
   const prepareNextPlayer = useCallback(() => {

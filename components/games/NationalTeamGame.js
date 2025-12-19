@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StartScreen from "@/components/screens/StartScreen";
 import EndScreen from "@/components/screens/EndScreen";
 import TeamGameScreen, {
@@ -17,32 +17,44 @@ import { useGameDataPreload } from "@/hooks/games/useGameDataPreload";
 import { User } from "lucide-react";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
 import { useUserStore } from "@/stores/userStore";
+import { useGameAttemptsStore } from "@/stores/gameAttemptsStore";
+import { calculateStreak } from "@/utils/date";
+import { debugLog } from "@/utils/debugLogger";
 
 export default function NationalTeamGame({ clubId, homeUrl }) {
   const [gameMode, setGameMode] = useState("lives");
   const [isInitializing, setIsInitializing] = useState(false);
   const [initializationError, setInitializationError] = useState(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  const gameAttemptsStore = useGameAttemptsStore();
 
   const isMobile = useMediaQuery({ maxWidth: 767 });
 
-  const {
-    wasPlayedToday: wasPlayedTodayServer,
-    getLastAttempt: getLastAttemptServer,
-    isLoading: attemptsLoading,
-  } = useGameAttempts(clubId);
+  const user = useUserStore((state) => state.user);
 
-  const localGameAttemptsHook = useLocalGameAttempts(clubId);
+  // ----------------------------------------
+  // ⚠️ SIEMPRE SE LLAMA (regla de hooks)
+  // ----------------------------------------
+  const serverAttempts = useGameAttempts(clubId);
 
-  const user = useUserStore?.((state) => state.user) || null;
+  // ----------------------------------------
+  // 🔥 LOCAL (siempre disponible)
+  // ----------------------------------------
+  const localAttempts = useLocalGameAttempts(clubId);
 
-  const attempts = user
-    ? {
-        wasPlayedToday: wasPlayedTodayServer,
-        getLastAttempt: getLastAttemptServer,
-      }
-    : localGameAttemptsHook;
+  // ----------------------------------------
+  // 🔥 Elección lógica sin romper hooks
+  // ----------------------------------------
+  const attempts = user ? serverAttempts : localAttempts;
 
   const wasPlayedToday = attempts?.wasPlayedToday?.("national") || false;
+
+  const attemptsLoading = user ? serverAttempts?.isLoading : false;
+
   const attemptsAreLoaded = attemptsLoading === false; // si user -> useGameAttempts, si local -> siempre true
 
   const shouldSkipPreload = attemptsAreLoaded && wasPlayedToday;
@@ -73,17 +85,21 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
     timeLimit: GAME_CONFIGS.national.timeLimit || 60,
     initialLives: 3,
     onGameEnd: async (won, extraData) => {
+      debugLog.hookLifecycle("NationalGame", "save_start", {
+        clubId: clubId || "global",
+        won,
+      });
       const coachToSave =
         nationalTeamGame.coachRef?.current ??
         extraData?.coach ??
         nationalTeamGame.coach;
 
-      console.log("[v0] National Team - onGameEnd coach sources:", {
-        coachRefCurrent: nationalTeamGame.coachRef?.current?.fullName,
-        extraDataCoach: extraData?.coach?.fullName,
-        nationalTeamGameCoach: nationalTeamGame.coach?.fullName,
-        finalCoachToSave: coachToSave?.fullName,
-      });
+      // console.log("[v0] National Team - onGameEnd coach sources:", {
+      //   coachRefCurrent: nationalTeamGame.coachRef?.current?.fullName,
+      //   extraDataCoach: extraData?.coach?.fullName,
+      //   nationalTeamGameCoach: nationalTeamGame.coach?.fullName,
+      //   finalCoachToSave: coachToSave?.fullName,
+      // });
 
       const formationToSave = nationalTeamGame.formation;
       const positionsToSave = nationalTeamGame.positions;
@@ -120,6 +136,14 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
           ? Math.max(currentScore, lastAttempt.recordScore)
           : currentScore;
 
+        let streakValue = lastAttempt?.streak || 0;
+        if (won) {
+          streakValue = calculateStreak(
+            lastAttempt?.date,
+            lastAttempt?.streak || 0
+          );
+        }
+
         const attemptData = {
           gameType: "national",
           clubId: clubId || null,
@@ -137,20 +161,28 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
           livesRemaining: gameLogic.lives || 0,
           gameMode,
           gameData,
-          streak: won ? (lastAttempt?.streak || 0) + 1 : 0,
-          date: new Date(),
+          streak: streakValue, // Send calculated streak to backend (which will recalculate anyway)
+          date: new Date().toISOString(),
         };
 
-        console.log(
-          "[v0] National Team - Saving attempt with coach:",
-          attemptData.gameData.coach?.fullName
-        );
+        // console.log(
+        //   "[v0] National Team - Saving attempt with coach:",
+        //   attemptData.gameData.coach?.fullName
+        // );
 
         try {
           if (!user) {
-            localGameAttemptsHook?.updateAttempt("national", attemptData);
+            // Guardado local solamente cuando NO hay usuario
+            localAttempts.updateAttempt("national", attemptData);
             return;
           }
+
+          debugLog.apiRequest(
+            "POST",
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/national-team/save`,
+            attemptData,
+            "useNationalTeamGame"
+          );
 
           const response = await fetch(
             `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/national-team/save`,
@@ -164,7 +196,32 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
 
           if (!response.ok)
             throw new Error(`Error al guardar: ${response.status}`);
+
+          const { attempt: savedAttempt } = await response.json();
+          if (savedAttempt) {
+            gameAttemptsStore.updateAttempt(clubId, "national", {
+              ...attemptData,
+              streak: savedAttempt.streak, // Use backend-calculated streak
+              _id: savedAttempt._id,
+              createdAt: savedAttempt.createdAt,
+              updatedAt: savedAttempt.updatedAt,
+            });
+            if (!user) {
+              localAttempts.updateAttempt("national", {
+                ...attemptData,
+                streak: savedAttempt.streak,
+                _id: savedAttempt._id,
+                createdAt: savedAttempt.createdAt,
+                updatedAt: savedAttempt.updatedAt,
+              });
+            }
+            // console.log(
+            //   "[v0] LocalStorage updated with saved attempt, streak:",
+            //   savedAttempt.streak
+            // );
+          }
         } catch (error) {
+          debugLog.apiError("saveGameAttempt", error, "useNationalTeamGame");
           console.error("Error saving game attempt:", error);
         }
       }
@@ -197,6 +254,17 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
       setIsInitializing(false);
     }
   };
+
+  // 🔹 Evita mismatch SSR/CSR
+  if (!isClient) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <p className="text-[var(--primary)] dark:text-[var(--white)]">
+          Cargando juego...
+        </p>
+      </div>
+    );
+  }
 
   if (attemptsLoading) return <LoadingScreen message="Cargando datos..." />;
 
@@ -337,10 +405,6 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
                               src={
                                 posData.player.profileImage ||
                                 "/placeholder.svg" ||
-                                "/placeholder.svg" ||
-                                "/placeholder.svg" ||
-                                "/placeholder.svg" ||
-                                "/placeholder.svg" ||
                                 "/placeholder.svg"
                               }
                               alt={posData.player.fullName}
@@ -351,7 +415,7 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
                               }}
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)] rounded-full">
+                            <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)] rounded-full">
                               <User className="h-4 w-4 md:h-5 md:w-5 text-gray-500 dark:text-gray-400" />
                             </div>
                           )
@@ -386,7 +450,7 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
           <div className="flex flex-col items-center justify-center min-w-[40px] md:min-w-[120px] h-auto md:h-full ml-2 md:ml-0 lg:ml-4">
             <div className="w-10 h-10 md:w-14 md:h-14 mb-1 md:mb-2 flex-shrink-0">
               <div className="relative w-full h-full">
-                <div className="absolute inset-0 rounded-full shadow-md overflow-hidden bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)]">
+                <div className="absolute inset-0 rounded-full shadow-md overflow-hidden bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)]">
                   {gameData.coach?.profileImage ? (
                     <img
                       src={gameData.coach.profileImage || "/placeholder.svg"}
@@ -405,7 +469,7 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
                 </div>
               </div>
             </div>
-            <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--blanco)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
+            <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--white)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
               {gameData.coach ? `DT: ${gameData.coach.fullName}` : "DT: ?"}
             </span>
           </div>
@@ -429,7 +493,7 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
         homeUrl={homeUrl}
         extraContentRight={
           possiblePlayersOnFail.length > 0 && (
-            <div className="rounded-lg bg-[var(--rojo)] dark:bg-[var(--azul)] p-1">
+            <div className="rounded-lg bg-[var(--secondary)] dark:bg-[var(--primary)] p-1">
               <h3 className="text-sm lg:text-base font-bold mb-1 text-white text-center">
                 Jugadores posibles para {currentClub?.name || "el club"}:
               </h3>
@@ -573,10 +637,6 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
                               src={
                                 posData.player.profileImage ||
                                 "/placeholder.svg" ||
-                                "/placeholder.svg" ||
-                                "/placeholder.svg" ||
-                                "/placeholder.svg" ||
-                                "/placeholder.svg" ||
                                 "/placeholder.svg"
                               }
                               alt={posData.player.fullName}
@@ -587,7 +647,7 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
                               }}
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)] rounded-full">
+                            <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)] rounded-full">
                               <User className="h-4 w-4 md:h-5 md:w-5 text-gray-500 dark:text-gray-400" />
                             </div>
                           )
@@ -622,15 +682,11 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
           <div className="flex flex-col items-center justify-center min-w-[40px] md:min-w-[120px] h-auto md:h-full ml-2 md:ml-0 lg:ml-4">
             <div className="w-10 h-10 md:w-14 md:h-14 mb-1 md:mb-2 flex-shrink-0">
               <div className="relative w-full h-full">
-                <div className="absolute inset-0 rounded-full shadow-md overflow-hidden bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)]">
+                <div className="absolute inset-0 rounded-full shadow-md overflow-hidden bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)]">
                   {nationalTeamGame.coach?.profileImage ? (
                     <img
                       src={
                         nationalTeamGame.coach.profileImage ||
-                        "/placeholder.svg" ||
-                        "/placeholder.svg" ||
-                        "/placeholder.svg" ||
-                        "/placeholder.svg" ||
                         "/placeholder.svg" ||
                         "/placeholder.svg"
                       }
@@ -649,7 +705,7 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
                 </div>
               </div>
             </div>
-            <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--blanco)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
+            <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--white)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
               {nationalTeamGame.coach
                 ? `DT: ${nationalTeamGame.coach.fullName}`
                 : "DT: ?"}
@@ -718,6 +774,7 @@ export default function NationalTeamGame({ clubId, homeUrl }) {
       onConfirmPosition={nationalTeamGame.confirmPositionSelection}
       formatTime={gameLogic.formatTime}
       cachedPlayers={allPlayers || []}
+      cachedCoaches={allCoaches || []}
       validPlayersForCurrentClub={nationalTeamGame.getValidPlayersForCurrentClub()}
     />
   );

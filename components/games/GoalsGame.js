@@ -12,21 +12,29 @@ import { useUserStore } from "@/stores/userStore";
 import { useGameDataPreload } from "@/hooks/games/useGameDataPreload";
 import { useGoalsGame } from "@/hooks/games/useGoalsGame";
 
-export const dynamic = "force-dynamic";
-
 export default function GoalsGame({ clubId, homeUrl }) {
   const [gameMode, setGameMode] = useState("normal");
 
   const user = useUserStore((state) => state.user);
 
-  const userAttempts = useGameAttempts(clubId);
+  // ----------------------------------------
+  // ⚠️ SIEMPRE SE LLAMA (regla de hooks)
+  // ----------------------------------------
+  const serverAttempts = useGameAttempts(clubId);
+
+  // ----------------------------------------
+  // 🔥 LOCAL (siempre disponible)
+  // ----------------------------------------
   const localAttempts = useLocalGameAttempts(clubId);
 
-  // Use local attempts if no user, otherwise use user attempts
-  const attempts = user ? userAttempts : localAttempts;
+  // ----------------------------------------
+  // 🔥 Elección lógica sin romper hooks
+  // ----------------------------------------
+  const attempts = user ? serverAttempts : localAttempts;
+
   const wasPlayedToday = attempts?.wasPlayedToday?.("goals") || false;
-  const getLastAttempt = () => attempts?.getLastAttempt?.("goals") || null;
-  const attemptsLoading = user ? userAttempts.isLoading : false;
+
+  const attemptsLoading = user ? serverAttempts.isLoading : false;
 
   const attemptsAreLoaded = attemptsLoading === false; // si user -> useGameAttempts, si local -> siempre true
 
@@ -45,16 +53,18 @@ export default function GoalsGame({ clubId, homeUrl }) {
     skip: shouldSkipPreload,
   });
 
+  const getLastAttempt = () => attempts?.getLastAttempt?.("goals") || null;
+
+  const lastAttempt = getLastAttempt();
+
   const goalsGame = useGoalsGame({
     gameMode,
     clubId,
     preloadedPlayers: allPlayers || [],
     onGameEnd: async (won, stats, gameData) => {
-      console.log("[GoalsGame] Game ended:", { won, stats, gameData });
+      // console.log("[GoalsGame] Game ended:", { won, stats, gameData });
     },
   });
-
-  const lastAttempt = getLastAttempt();
 
   if (dataLoading) return <LoadingScreen message="Cargando jugadores..." />;
 

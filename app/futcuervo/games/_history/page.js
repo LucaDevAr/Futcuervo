@@ -115,9 +115,7 @@ export default function HistoryGamePage() {
       try {
         setLoading(true);
         const localDate = new Date().toLocaleDateString("sv-SE");
-        const res = await fetch(`/api/history-game?date=${localDate}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(`/api/history-game?date=${localDate}`);
         const data = await res.json();
 
         if (!data.historyGame) {

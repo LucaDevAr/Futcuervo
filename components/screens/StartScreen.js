@@ -55,7 +55,7 @@ export default function StartScreen({
 
   return (
     <>
-      <div className="h-[calc(100vh-64px)] flex">
+      <div className="h-[calc(100vh-56px)] md:h-[calc(100vh-64px)] flex text-[var(--text)]">
         {/* Columna izquierda */}
         <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-2 lg:p-4 bg-[var(--primary)] dark:bg-[var(--secondary)]">
           <div className="text-center text-white max-w-sm">

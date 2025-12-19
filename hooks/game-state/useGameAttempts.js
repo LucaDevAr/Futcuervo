@@ -1,92 +1,79 @@
 "use client";
 
 import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { gameStatsApi } from "@/services/gameStatsApi";
 import { useGameAttemptsStore } from "@/stores/gameAttemptsStore";
 import { useUserStore } from "@/stores/userStore";
 
 export const useGameAttempts = (clubId = null) => {
+  // 🔐 AUTH (SIEMPRE se llama)
   const user = useUserStore((state) => state.user);
-  const {
-    isLoading,
-    error,
-    setLastAttempts,
-    setLoading,
-    setError,
-    needsRefresh,
-    clearAttempts,
-    forceRefresh,
-    getClubData,
-    allAttemptsFetched,
-  } = useGameAttemptsStore();
+  const isAuthenticated = !!user;
 
+  // 📦 STORE (SIEMPRE se llama)
+  const { isLoading, error, clearAttempts, forceRefresh, getClubData } =
+    useGameAttemptsStore();
+
+  // 📊 DATA (puede ser undefined, pero el hook ya fue llamado)
   const clubData = getClubData(clubId);
 
-  const shouldFetch = !allAttemptsFetched && needsRefresh(clubId);
-
-  const query = useQuery({
-    queryKey: ["gameAttempts", user?.id, clubId, new Date().toDateString()],
-    queryFn: async () => {
-      console.log(
-        "[v0] Fetching game attempts from API for club:",
-        clubId || "null"
-      );
-      const data = await gameStatsApi.getUserStats(clubId);
-      return data;
-    },
-    enabled: !!user && shouldFetch, // Only fetch if needed
-    retry: 1,
-    staleTime: 1000 * 60 * 60 * 2, // 2 horas
-    refetchOnMount: false, // Don't refetch on mount if we have all attempts
-    refetchOnWindowFocus: false,
-  });
-
+  /**
+   * 🔄 LOGOUT → limpiar store ONLINE
+   */
   useEffect(() => {
-    if (query.data) {
-      console.log(
-        "[v0] Setting last attempts for club:",
-        clubId || "null",
-        query.data
-      );
-      setLastAttempts(clubId, query.data);
+    if (!isAuthenticated) {
+      clearAttempts();
     }
-  }, [query.data, clubId, setLastAttempts]);
+  }, [isAuthenticated, clearAttempts]);
 
-  // Manejar errores
-  useEffect(() => {
-    if (query.error) setError(query.error.message);
-  }, [query.error, setError]);
-
-  // Limpiar datos si no hay usuario
-  useEffect(() => {
-    if (!user) clearAttempts();
-  }, [user, clearAttempts]);
-
-  // Manejar loading state
-  useEffect(() => {
-    setLoading(query.isLoading);
-  }, [query.isLoading, setLoading]);
+  /**
+   * 🧠 EXPOSICIÓN DE DATOS
+   * Si NO hay user → stats vacíos
+   */
+  const safeClubData = isAuthenticated ? clubData : null;
 
   return {
-    lastAttempts: clubData?.lastAttempts || {},
-    totalGames: clubData?.totalGames || 0,
-    lastUpdated: clubData?.lastUpdated || null,
-    isLoading: isLoading || query.isLoading,
-    error: error || query.error,
-    refetch: query.refetch,
-    forceRefresh: () => forceRefresh(clubId),
-    getLastAttempt: (gameType) =>
-      useGameAttemptsStore.getState().getLastAttempt(clubId, gameType),
-    wasPlayedToday: (gameType) =>
-      useGameAttemptsStore.getState().wasPlayedToday(clubId, gameType),
-    getCurrentStreak: (gameType) =>
-      useGameAttemptsStore.getState().getCurrentStreak(clubId, gameType),
-    getBestScore: (gameType) =>
-      useGameAttemptsStore.getState().getBestScore(clubId, gameType),
-    updateAttempt: (gameType, attemptData) =>
+    lastAttempts: safeClubData?.lastAttempts || {},
+    totalGames: safeClubData?.totalGames || 0,
+    lastUpdated: safeClubData?.lastUpdated || null,
+
+    isLoading: isAuthenticated ? isLoading : false,
+    error: isAuthenticated ? error : null,
+
+    refetch: () => {
+      if (!isAuthenticated) return;
+      forceRefresh(clubId);
+    },
+
+    forceRefresh: () => {
+      if (!isAuthenticated) return;
+      forceRefresh(clubId);
+    },
+
+    getLastAttempt: (gameType) => {
+      if (!isAuthenticated) return null;
+      return useGameAttemptsStore.getState().getLastAttempt(clubId, gameType);
+    },
+
+    wasPlayedToday: (gameType) => {
+      if (!isAuthenticated) return false;
+      return useGameAttemptsStore.getState().wasPlayedToday(clubId, gameType);
+    },
+
+    getCurrentStreak: (gameType) => {
+      if (!isAuthenticated) return 0;
+      return useGameAttemptsStore.getState().getCurrentStreak(clubId, gameType);
+    },
+
+    getBestScore: (gameType) => {
+      if (!isAuthenticated) return 0;
+      return useGameAttemptsStore.getState().getBestScore(clubId, gameType);
+    },
+
+    updateAttempt: (gameType, attemptData) => {
+      if (!isAuthenticated) return;
       useGameAttemptsStore
         .getState()
-        .updateAttempt(clubId, gameType, attemptData),
+        .updateAttempt(clubId, gameType, attemptData);
+    },
   };
 };

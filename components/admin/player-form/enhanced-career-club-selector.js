@@ -35,7 +35,10 @@ export function EnhancedCareerClubSelector({
 
     // Si no hay liga externa, actualizar la liga interna basada en el club seleccionado
     if (!externalSelectedLeague && clubId) {
-      const club = clubs.find((c) => c._id === clubId);
+      const club =
+        clubs && Array.isArray(clubs)
+          ? clubs.find((c) => c._id === clubId)
+          : null;
       if (club) {
         setInternalSelectedLeague(club.league._id);
       }
@@ -49,7 +52,7 @@ export function EnhancedCareerClubSelector({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <LeagueSelectorWithLogos
-        leagues={leagues}
+        leagues={leagues || []}
         value={selectedLeague}
         onChange={handleLeagueChange}
         isDarkMode={isDarkMode}
@@ -58,7 +61,7 @@ export function EnhancedCareerClubSelector({
       />
 
       <ClubSelectorWithLogos
-        clubs={clubs}
+        clubs={clubs || []}
         selectedLeague={selectedLeague}
         value={selectedClub}
         onChange={handleClubChange}

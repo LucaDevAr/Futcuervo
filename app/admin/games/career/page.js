@@ -38,7 +38,7 @@ export default function CareerGameCalendarPage() {
         .filter((g) =>
           calendarClubFilter ? g.clubId?._id === calendarClubFilter : !g.clubId
         )
-        .map((g) => g.player._id.toString())
+        .map((g) => g?.player?._id?.toString())
     );
   }, [games, calendarClubFilter]);
 

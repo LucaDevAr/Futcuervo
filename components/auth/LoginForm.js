@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FcGoogle } from "react-icons/fc";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { useUserStore } from "@/stores/userStore";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -17,8 +16,6 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
-
-  const setUser = useUserStore((state) => state.setUser);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,22 +29,22 @@ export default function LoginForm() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
-          credentials: "include",
+          credentials: "include", // 🔑 cookies httpOnly
         }
       );
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Error al iniciar sesión");
-      } else {
-        if (data.user) {
-          setUser(data.user);
-          localStorage.setItem("userFallback", JSON.stringify(data.user));
-        }
-        router.push(callbackUrl);
+        setError(data?.error || "Error al iniciar sesión");
+        return;
       }
-    } catch (error) {
+
+      // ✅ Login OK → cookies seteadas
+      // 👉 ClientProviders se encargará de /auth/me y del estado global
+      window.location.href = callbackUrl;
+    } catch (err) {
+      console.error("Login error:", err);
       setError("Ocurrió un error al iniciar sesión");
     } finally {
       setLoading(false);
@@ -157,17 +154,13 @@ export default function LoginForm() {
           >
             <div
               className="w-full border-t"
-              style={{
-                borderColor: "var(--gris)",
-              }}
-            ></div>
+              style={{ borderColor: "var(--gris)" }}
+            />
           </div>
           <div className="relative flex justify-center text-xs">
             <span
               className="px-2 bg-[var(--background)]"
-              style={{
-                color: "var(--gris)",
-              }}
+              style={{ color: "var(--gris)" }}
             >
               O continúa con
             </span>
@@ -178,10 +171,7 @@ export default function LoginForm() {
           type="button"
           onClick={handleGoogleSignIn}
           className="w-full py-2 rounded-lg font-medium flex items-center justify-center gap-2 text-sm transition hover:shadow bg-[var(--background)]"
-          style={{
-            borderWidth: "1px",
-            borderColor: "var(--gris)",
-          }}
+          style={{ borderWidth: "1px", borderColor: "var(--gris)" }}
         >
           <FcGoogle size={18} />
           Google

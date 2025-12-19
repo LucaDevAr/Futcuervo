@@ -1,6 +1,6 @@
 import GoalsGame from "@/components/games/GoalsGame";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 86400; // cache 24hs
 
 const FUTMERENGUE_CLUB_ID = "686a78a8607a6a666f53a675";
 

@@ -1,25 +1,18 @@
 "use client";
 
-import { useUserSession } from "@/hooks/auth/useUserSession";
+import { useUserStore } from "@/stores/userStore";
 import { HomeStats } from "@/components/home/HomeStats";
 import Footer from "@/components/layout/Footer";
 import { useClubGames } from "@/hooks/games/useClubGames";
-import { useGameStats } from "@/hooks/game-state/useGameStats";
 import { ArrowLeft, Shield, Trophy, X } from "lucide-react";
 import ClubSelector from "../ClubSelector";
 import Rankings from "../Rankings";
 import { useState } from "react";
 
 export default function FutMerengueHome() {
-  const { user, loading: userLoading } = useUserSession();
+  const user = useUserStore((state) => state.user);
   // TODO: Replace with actual Real Madrid club ID from your database
   const clubId = "686a78a8607a6a666f53a675";
-  const {
-    stats,
-    isLoading: statsLoading,
-    error,
-    totalGames,
-  } = useGameStats(clubId);
   const [clubModalOpen, setClubModalOpen] = useState(false);
   const [rankingModalOpen, setRankingModalOpen] = useState(false);
 

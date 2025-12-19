@@ -29,20 +29,20 @@ export default function AdminDashboardPage() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    // Fetch stats
-    const fetchStats = async () => {
-      try {
-        const songsRes = await fetch("/api/songs");
-        const songs = await songsRes.json();
-        setStats((prev) => ({ ...prev, totalSongs: songs.length }));
-      } catch (error) {
-        console.error("Error fetching stats:", error);
-      }
-    };
+  // useEffect(() => {
+  //   // Fetch stats
+  //   const fetchStats = async () => {
+  //     try {
+  //       const songsRes = await fetch("/api/songs");
+  //       const songs = await songsRes.json();
+  //       setStats((prev) => ({ ...prev, totalSongs: songs.length }));
+  //     } catch (error) {
+  //       console.error("Error fetching stats:", error);
+  //     }
+  //   };
 
-    fetchStats();
-  }, []);
+  //   fetchStats();
+  // }, []);
 
   const dashboardCards = [
     {

@@ -48,7 +48,8 @@ export default function AdminLogoMenu({
     }
 
     clearUser();
-    localStorage.removeItem("userFallback");
+    localStorage.removeItem("user");
+    localStorage.removeItem("game-attempts-storage");
     setIsMenuOpen(false);
     window.location.href = "/"; // redirige al home
   };

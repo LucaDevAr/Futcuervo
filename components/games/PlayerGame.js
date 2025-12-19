@@ -10,8 +10,6 @@ import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
 import { useUserStore } from "@/stores/userStore";
 import { usePlayerGame } from "@/hooks/games/usePlayerGame";
 
-export const dynamic = "force-dynamic";
-
 const KEYBOARD_ROWS = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ"],
@@ -21,7 +19,6 @@ const KEYBOARD_ROWS = [
 export default function PlayerGame({ clubId, homeUrl }) {
   const [gameMode, setGameMode] = useState("normal");
   const [isClient, setIsClient] = useState(false);
-
   const getActionImageForClub = (player, clubId) => {
     if (!player) return null;
 
@@ -43,45 +40,56 @@ export default function PlayerGame({ clubId, homeUrl }) {
 
   const user = useUserStore((state) => state.user);
 
-  // Hooks
-  const userAttempts = useGameAttempts(clubId); // DB
-  const localAttempts = useLocalGameAttempts(clubId); // localStorage
+  // ----------------------------------------
+  // ⚠️ SIEMPRE SE LLAMA (regla de hooks)
+  // ----------------------------------------
+  const serverAttempts = useGameAttempts(clubId);
 
-  // Si hay usuario → usamos DB, sino Local
-  const attempts = user ? userAttempts : localAttempts;
+  // ----------------------------------------
+  // 🔥 LOCAL (siempre disponible)
+  // ----------------------------------------
+  const localAttempts = useLocalGameAttempts(clubId);
+
+  // ----------------------------------------
+  // 🔥 Elección lógica sin romper hooks
+  // ----------------------------------------
+  const attempts = user ? serverAttempts : localAttempts;
 
   const wasPlayedToday = attempts?.wasPlayedToday?.("player") || false;
+
   const getLastAttempt = () => attempts?.getLastAttempt?.("player") || null;
-  const attemptsLoading = user ? userAttempts.isLoading : false;
+
+  const lastAttempt = getLastAttempt();
 
   const playerGameHook = usePlayerGame({
     gameMode,
     clubId,
+    user,
     onGameEnd: async (won, stats, gameData) => {
-      console.log("[PlayerGame] Game ended:", { won, stats, gameData });
+      // console.log("[PlayerGame] Game ended:", { won, stats, gameData });
     },
   });
-
-  const lastAttempt = getLastAttempt();
 
   if (!isClient) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <p className="text-primary dark:text-secondary">Cargando juego...</p>
+        <p className="text-[var(--primary)] dark:text-[var(--secondary)]">
+          Cargando juego...
+        </p>
       </div>
     );
   }
 
-  if (attemptsLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary mx-auto mb-4"></div>
-          <p>Cargando datos del juego...</p>
-        </div>
-      </div>
-    );
-  }
+  // if (attemptsLoading) {
+  //   return (
+  //     <div className="h-screen flex items-center justify-center">
+  //       <div className="text-center">
+  //         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary dark:border-secondary mx-auto mb-4"></div>
+  //         <p>Cargando datos del juego...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   if (playerGameHook.loading) {
     return <LoadingScreen message="Cargando juego..." />;
@@ -90,7 +98,7 @@ export default function PlayerGame({ clubId, homeUrl }) {
   if (playerGameHook.errorMessage) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <p className="text-primary dark:text-secondary">
+        <p className="text-[var(--primary)] dark:text-[var(--secondary)]">
           {playerGameHook.errorMessage}
         </p>
       </div>
@@ -205,7 +213,7 @@ export default function PlayerGame({ clubId, homeUrl }) {
                   className="rounded-xl shadow-lg object-cover w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36"
                 />
               ) : (
-                <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 bg-secondary dark:bg-primary rounded-lg shadow-lg flex items-center justify-center">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 bg-[var(--secondary)] dark:bg-[var(--primary)] rounded-lg shadow-lg flex items-center justify-center">
                   <span className="text-white text-4xl">?</span>
                 </div>
               )}
@@ -214,10 +222,10 @@ export default function PlayerGame({ clubId, homeUrl }) {
               {renderGuessGrid()}
             </div>
             <div className="text-center mt-1 sm:mt-2">
-              <p className="text-sm sm:text-base font-semibold text-primary dark:text-secondary hidden md:block">
+              <p className="text-sm sm:text-base font-semibold text-[var(--primary)] dark:text-[var(--secondary)] hidden md:block">
                 {player?.fullName}
               </p>
-              <p className="hidden md:block text-xs sm:text-sm text-primary dark:text-secondary opacity-80">
+              <p className="hidden md:block text-xs sm:text-sm text-[var(--primary)] dark:text-[var(--secondary)] opacity-80">
                 Palabra: &quot;{playerGameHook.playerGame?.selectedName}&quot;
               </p>
             </div>
@@ -329,7 +337,7 @@ export default function PlayerGame({ clubId, homeUrl }) {
                   className="rounded-xl shadow-lg object-cover w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36"
                 />
               ) : (
-                <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 bg-secondary dark:bg-primary rounded-lg shadow-lg flex items-center justify-center">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-36 md:h-36 bg-[var(--secondary)] dark:bg-[var(--primary)] rounded-lg shadow-lg flex items-center justify-center">
                   <span className="text-white text-4xl">?</span>
                 </div>
               )}
@@ -338,10 +346,10 @@ export default function PlayerGame({ clubId, homeUrl }) {
               {renderGuessGrid()}
             </div>
             <div className="text-center mt-1 sm:mt-2">
-              <p className="text-sm sm:text-base font-semibold text-primary dark:text-secondary hidden md:block">
+              <p className="text-sm sm:text-base font-semibold text-[var(--primary)] dark:text-[var(--secondary)] hidden md:block">
                 {player?.fullName}
               </p>
-              <p className="hidden md:block text-xs sm:text-sm text-primary dark:text-secondary opacity-80">
+              <p className="hidden md:block text-xs sm:text-sm text-[var(--primary)] dark:text-[var(--secondary)] opacity-80">
                 Palabra: &quot;{playerGameHook.playerGame?.selectedName}&quot;
               </p>
             </div>
@@ -513,16 +521,16 @@ export default function PlayerGame({ clubId, homeUrl }) {
       {/* Left column - Wordle grid */}
       <div className="w-full md:w-1/2 flex items-center justify-center bg-background p-4 order-2 md:order-1 h-full">
         <div className="space-y-2">
-          <h2 className="text-xl font-bold text-center mb-4 text-primary dark:text-secondary">
+          <h2 className="text-xl font-bold text-center mb-4 text-[var(--primary)] dark:text-[var(--secondary)]">
             Adivina el Jugador
           </h2>
           <div className="space-y-1">{renderGuessGrid()}</div>
           <div className="mt-4 text-center">
-            <p className="text-sm text-primary dark:text-secondary opacity-80">
+            <p className="text-sm text-[var(--primary)] dark:text-[var(--secondary)] opacity-80">
               Intentos: {playerGameHook.attempts.length}/
               {playerGameHook.maxAttempts}
             </p>
-            <p className="text-xs text-primary dark:text-secondary opacity-60 mt-1">
+            <p className="text-xs text-[var(--primary)] dark:text-[var(--secondary)] opacity-60 mt-1">
               {playerGameHook.playerGame?.selectedName.length} letras
             </p>
           </div>

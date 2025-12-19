@@ -8,9 +8,8 @@ import GameScreen from "@/components/screens/GameScreen";
 import { useGameAttempts } from "@/hooks/game-state/useGameAttempts";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
 import { useUserStore } from "@/stores/userStore";
+import { useGameAttemptsStore } from "@/stores/gameAttemptsStore";
 import { useShirtGame } from "@/hooks/games/useShirtGame";
-
-export const dynamic = "force-dynamic";
 
 export default function ShirtGame({ clubId, homeUrl }) {
   const [gameMode, setGameMode] = useState("lives");
@@ -22,43 +21,42 @@ export default function ShirtGame({ clubId, homeUrl }) {
 
   const user = useUserStore((state) => state.user);
 
-  const userAttempts = useGameAttempts(clubId);
+  // ----------------------------------------
+  // ⚠️ SIEMPRE SE LLAMA (regla de hooks)
+  // ----------------------------------------
+  const serverAttempts = useGameAttempts(clubId);
+
+  // ----------------------------------------
+  // 🔥 LOCAL (siempre disponible)
+  // ----------------------------------------
   const localAttempts = useLocalGameAttempts(clubId);
 
-  // Use local attempts if no user, otherwise use user attempts
-  const attempts = user ? userAttempts : localAttempts;
+  // ----------------------------------------
+  // 🔥 Elección lógica sin romper hooks
+  // ----------------------------------------
+  const attempts = user ? serverAttempts : localAttempts;
+
   const wasPlayedToday = attempts?.wasPlayedToday?.("shirt") || false;
+
   const getLastAttempt = () => attempts?.getLastAttempt?.("shirt") || null;
-  const attemptsLoading = user ? userAttempts.isLoading : false;
+
+  const lastAttempt = getLastAttempt();
 
   const shirtGameHook = useShirtGame({
     gameMode,
     clubId,
     onGameEnd: async (won, stats, gameData) => {
-      console.log("[ShirtGame] Game ended:", { won, stats, gameData });
+      // console.log("[ShirtGame] Game ended:", { won, stats, gameData });
     },
   });
-
-  const lastAttempt = getLastAttempt();
 
   // 🔹 Evita mismatch SSR/CSR
   if (!isClient) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <p className="text-[var(--azul)] dark:text-[var(--blanco)]">
+        <p className="text-[var(--primary)] dark:text-[var(--white)]">
           Cargando juego...
         </p>
-      </div>
-    );
-  }
-
-  if (attemptsLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary)] dark:border-[var(--secondary)] mx-auto mb-4"></div>
-          <p>Cargando datos del juego...</p>
-        </div>
       </div>
     );
   }
@@ -70,7 +68,7 @@ export default function ShirtGame({ clubId, homeUrl }) {
   if (shirtGameHook.errorMessage) {
     return (
       <div className="h-screen flex items-center justify-center">
-        <p className="text-[var(--azul)] dark:text-[var(--blanco)]">
+        <p className="text-[var(--primary)] dark:text-[var(--white)]">
           {shirtGameHook.errorMessage}
         </p>
       </div>
@@ -223,8 +221,8 @@ export default function ShirtGame({ clubId, homeUrl }) {
           <button
             className={`px-4 py-3 rounded-xl border-2 transition-all duration-200 font-bold text-base ${
               shirtGameHook.selectedEmblemType === "escudo"
-                ? "bg-[var(--blanco)] text-[var(--azul)] dark:text-[var(--rojo)] border-[var(--blanco)] shadow-lg"
-                : "bg-transparent border-[var(--blanco)] text-[var(--blanco)] hover:bg-[var(--blanco)] hover:text-[var(--azul)] dark:hover:text-[var(--rojo)]"
+                ? "bg-[var(--white)] text-[var(--primary)] dark:text-[var(--secondary)] border-[var(--white)] shadow-lg"
+                : "bg-transparent border-[var(--white)] text-[var(--white)] hover:bg-[var(--white)] hover:text-[var(--primary)] dark:hover:text-[var(--secondary)]"
             }`}
             onClick={() => shirtGameHook.selectEmblemType("escudo")}
           >
@@ -233,8 +231,8 @@ export default function ShirtGame({ clubId, homeUrl }) {
           <button
             className={`px-4 py-3 rounded-xl border-2 transition-all duration-200 font-bold text-base ${
               shirtGameHook.selectedEmblemType === "emblema"
-                ? "bg-[var(--blanco)] text-[var(--azul)] dark:text-[var(--rojo)] border-[var(--blanco)] shadow-lg"
-                : "bg-transparent border-[var(--blanco)] text-[var(--blanco)] hover:bg-[var(--blanco)] hover:text-[var(--azul)] dark:hover:text-[var(--rojo)]"
+                ? "bg-[var(--white)] text-[var(--primary)] dark:text-[var(--secondary)] border-[var(--white)] shadow-lg"
+                : "bg-transparent border-[var(--white)] text-[var(--white)] hover:bg-[var(--white)] hover:text-[var(--primary)] dark:hover:text-[var(--secondary)]"
             }`}
             onClick={() => shirtGameHook.selectEmblemType("emblema")}
           >
@@ -250,8 +248,8 @@ export default function ShirtGame({ clubId, homeUrl }) {
                 key={season}
                 className={`px-1 py-0.5 rounded-xl border-2 transition-all duration-200 font-bold text-xs lg:text-base ${
                   shirtGameHook.selectedSeasons.includes(season)
-                    ? "bg-[var(--blanco)] text-[var(--azul)] dark:text-[var(--rojo)] border-[var(--blanco)] shadow-lg"
-                    : "bg-transparent border-[var(--blanco)] text-[var(--blanco)] hover:bg-[var(--blanco)] hover:text-[var(--azul)] dark:hover:text-[var(--rojo)]"
+                    ? "bg-[var(--white)] text-[var(--primary)] dark:text-[var(--secondary)] border-[var(--white)] shadow-lg"
+                    : "bg-transparent border-[var(--white)] text-[var(--white)] hover:bg-[var(--white)] hover:text-[var(--primary)] dark:hover:text-[var(--secondary)]"
                 }`}
                 onClick={() => shirtGameHook.toggleSeason(season)}
               >
@@ -267,7 +265,7 @@ export default function ShirtGame({ clubId, homeUrl }) {
             type="text"
             value={shirtGameHook.input}
             onChange={(e) => shirtGameHook.setInput(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border-2 text-base bg-[var(--blanco)] text-[var(--azul)] dark:text-[var(--rojo)] focus:outline-none focus:shadow-lg placeholder:text-[var(--gris)]"
+            className="w-full px-4 py-3 rounded-xl border-2 text-base bg-[var(--white)] text-[var(--primary)] dark:text-[var(--secondary)] focus:outline-none focus:shadow-lg placeholder:text-[var(--gris)]"
             placeholder="Escribí tu respuesta..."
             onKeyPress={(e) =>
               e.key === "Enter" && shirtGameHook.handleSubmit()
@@ -277,14 +275,14 @@ export default function ShirtGame({ clubId, homeUrl }) {
           {shirtGameHook.step === 4 &&
             shirtGameHook.correctSponsors.length > 0 && (
               <div className="space-y-3">
-                <p className="text-sm font-medium text-[var(--blanco)]">
+                <p className="text-sm font-medium text-[var(--white)]">
                   Sponsors correctos:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {shirtGameHook.correctSponsors.map((s, i) => (
                     <span
                       key={i}
-                      className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--blanco)] text-[var(--azul)] dark:text-[var(--rojo)] shadow-md"
+                      className="px-3 py-1 rounded-full text-xs font-medium bg-[var(--white)] text-[var(--primary)] dark:text-[var(--secondary)] shadow-md"
                     >
                       {s}
                     </span>

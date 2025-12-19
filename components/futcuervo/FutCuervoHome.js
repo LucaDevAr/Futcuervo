@@ -1,39 +1,30 @@
 "use client";
-
-import { useUserSession } from "@/hooks/auth/useUserSession";
 import { HomeStats } from "@/components/home/HomeStats";
 import Footer from "@/components/layout/Footer";
 import { useClubGames } from "@/hooks/games/useClubGames";
-import { useGameStats } from "@/hooks/game-state/useGameStats";
-import { useLocalGameStats } from "@/hooks/game-state/useLocalGameStats";
+import useUnifiedGameStats from "@/hooks/game-state/useUnifiedGameStats";
 import { ArrowLeft, Shield, Trophy, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import ClubSelector from "../ClubSelector";
 import Rankings from "../Rankings";
 import { useState } from "react";
 
 export default function FutCuervoHome() {
-  const { user, loading: userLoading } = useUserSession();
+  const router = useRouter();
   const clubId = "68429af7587b60bfbe49342b";
+  const { source, lastAttempts, totalGames, isLoading } =
+    useUnifiedGameStats(clubId); // 🔒 Si el source es server y no hay juegos, NO mostrar stats
+  const stats = source === "server" && totalGames === 0 ? null : lastAttempts;
 
-  // ✅ Siempre llamar ambos hooks
-  const localStats = useLocalGameStats(clubId);
-  const {
-    stats: serverStats,
-    isLoading: statsLoading,
-    error,
-    totalGames,
-  } = useGameStats(clubId);
-
-  // ✅ Usar valores dependiendo del usuario logueado
-  const finalStats = user ? serverStats : localStats?.gameStats || {};
-  const finalTotalGames = user ? totalGames : localStats?.totalGames || 0;
+  const statsLoading = isLoading;
+  const error = null;
 
   const gameItems = useClubGames("futcuervo");
   const [clubModalOpen, setClubModalOpen] = useState(false);
   const [rankingModalOpen, setRankingModalOpen] = useState(false);
 
   const handleGameClick = (item) => {
-    window.location.href = item.path;
+    router.push(item.path);
   };
 
   return (
@@ -49,7 +40,7 @@ export default function FutCuervoHome() {
             {/* Volver al Home */}
             <button
               className="flex items-center gap-2 px-5 py-3 bg-[var(--primary)] dark:bg-[var(--secondary)] text-[var(--white)] rounded-lg shadow hover:opacity-90 transition"
-              onClick={() => (window.location.href = "/")}
+              onClick={() => router.push("/")}
             >
               <ArrowLeft className="w-4 h-4" />
               Volver al Home
@@ -65,13 +56,6 @@ export default function FutCuervoHome() {
             </button>
 
             {/* Cambiar Club */}
-            {/* <button
-              className="flex items-center gap-2 px-5 py-3 bg-[var(--primary)] dark:bg-[var(--secondary)] text-[var(--white)] rounded-lg shadow hover:opacity-90 transition"
-              onClick={() => setClubModalOpen(true)}
-            >
-              <Shield className="w-5 h-5" />
-              Cambiar Club
-            </button> */}
             <button
               disabled
               className="flex items-center gap-2 px-5 py-3 bg-gray-500/70 text-gray-200 rounded-lg shadow cursor-not-allowed"
@@ -81,10 +65,9 @@ export default function FutCuervoHome() {
             </button>
           </div>
 
-          {/* PASAMOS EL GAME ITEMS */}
           <HomeStats
-            stats={finalStats}
-            totalGames={finalTotalGames}
+            stats={stats}
+            totalGames={totalGames}
             loading={statsLoading}
             error={error}
             onGameClick={handleGameClick}
@@ -121,7 +104,13 @@ export default function FutCuervoHome() {
             </p>
           </div>
         </main>
-        <Footer />
+        <Footer
+          title="FutCuervo"
+          logo="/images/futcuervo-logo.png"
+          homeUrl="/"
+          fanBase="San Lorenzo"
+          showCuervo={true}
+        />
       </div>
 
       {/* Modal Club */}

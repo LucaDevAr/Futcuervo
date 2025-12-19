@@ -119,6 +119,7 @@ export default function PlayersPage() {
   }, []);
 
   // Cargar datos relacionados
+  // Cargar datos relacionados
   useEffect(() => {
     const fetchRelatedData = async () => {
       try {
@@ -134,22 +135,55 @@ export default function PlayersPage() {
           }),
         ]);
 
+        // COUNTRIES
         if (countriesRes.ok) {
-          const countriesData = await countriesRes.json();
-          setCountries(countriesData);
+          const data = await countriesRes.json();
+          setCountries(
+            Array.isArray(data)
+              ? data
+              : Array.isArray(data.countries)
+              ? data.countries
+              : Array.isArray(data.items)
+              ? data.items
+              : Array.isArray(data.data)
+              ? data.data
+              : []
+          );
         }
 
+        // CLUBS
         if (clubsRes.ok) {
-          const clubsData = await clubsRes.json();
-          setClubs(clubsData);
+          const data = await clubsRes.json();
+          setClubs(
+            Array.isArray(data)
+              ? data
+              : Array.isArray(data.clubs)
+              ? data.clubs
+              : Array.isArray(data.items)
+              ? data.items
+              : Array.isArray(data.data)
+              ? data.data
+              : []
+          );
         }
 
+        // LEAGUES ✅ (este era el bug)
         if (leaguesRes.ok) {
-          const leaguesData = await leaguesRes.json();
-          setLeagues(leaguesData);
+          const data = await leaguesRes.json();
+          setLeagues(
+            Array.isArray(data)
+              ? data
+              : Array.isArray(data.leagues)
+              ? data.leagues
+              : Array.isArray(data.items)
+              ? data.items
+              : Array.isArray(data.data)
+              ? data.data
+              : []
+          );
         }
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Error cargando datos relacionados:", error);
       }
     };
 

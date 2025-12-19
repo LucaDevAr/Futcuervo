@@ -28,10 +28,7 @@ export default function CustomVideoPlayer({
       setIsLoading(true);
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/videos/${videoId}`,
-          {
-            cache: "no-store",
-          }
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/videos/${videoId}`
         );
 
         if (!res.ok) throw new Error("Error al obtener el video");

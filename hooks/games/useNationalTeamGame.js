@@ -83,10 +83,10 @@ export function useNationalTeamGame({
   const [argentineClubs, setArgentineClubs] = useState([]);
 
   useEffect(() => {
-    console.log("[v0] useNationalTeamGame - preloaded data:", {
-      players: preloadedPlayers.length,
-      clubs: preloadedClubs.length,
-    });
+    // console.log("[v0] useNationalTeamGame - preloaded data:", {
+    //   players: preloadedPlayers.length,
+    //   clubs: preloadedClubs.length,
+    // });
 
     const slPlayers = preloadedPlayers.filter((player) => {
       if (!player.career || !Array.isArray(player.career)) return false;
@@ -96,7 +96,7 @@ export function useNationalTeamGame({
       });
     });
 
-    console.log("[v0] Filtered San Lorenzo players:", slPlayers.length);
+    // console.log("[v0] Filtered San Lorenzo players:", slPlayers.length);
     setSanLorenzoPlayers(slPlayers);
 
     const ARGENTINE_LEAGUE_ID = "68429abb587b60bfbe493429";
@@ -106,10 +106,10 @@ export function useNationalTeamGame({
       return isArgentineLeague && !isSanLorenzo;
     });
 
-    console.log(
-      "[v0] Filtered Argentine Primera División clubs (excluding San Lorenzo):",
-      argClubs.length
-    );
+    // console.log(
+    //   "[v0] Filtered Argentine Primera División clubs (excluding San Lorenzo):",
+    //   argClubs.length
+    // );
     setArgentineClubs(argClubs);
   }, [preloadedPlayers, preloadedClubs]);
 
@@ -123,19 +123,19 @@ export function useNationalTeamGame({
       const playersToUse = currentUsedPlayers || usedPlayers;
       const positionsToUse = currentVacantPositions || getVacantPositions();
 
-      console.log("[v0] getNextValidClub called:", {
-        clubsToUse: clubsToUse.length,
-        playersToUse: playersToUse.length,
-        positionsToUse,
-        availableClubs: argentineClubs.length,
-        sanLorenzoPlayers: sanLorenzoPlayers.length,
-      });
+      // console.log("[v0] getNextValidClub called:", {
+      //   clubsToUse: clubsToUse.length,
+      //   playersToUse: playersToUse.length,
+      //   positionsToUse,
+      //   availableClubs: argentineClubs.length,
+      //   sanLorenzoPlayers: sanLorenzoPlayers.length,
+      // });
 
       if (argentineClubs.length === 0 || sanLorenzoPlayers.length === 0) {
-        console.log("[v0] No data available:", {
-          argentineClubs: argentineClubs.length,
-          sanLorenzoPlayers: sanLorenzoPlayers.length,
-        });
+        // console.log("[v0] No data available:", {
+        //   argentineClubs: argentineClubs.length,
+        //   sanLorenzoPlayers: sanLorenzoPlayers.length,
+        // });
         setErrorMessage("No hay datos suficientes para iniciar el juego");
         return null;
       }
@@ -175,13 +175,13 @@ export function useNationalTeamGame({
         });
 
         if (validPlayers.length > 0) {
-          console.log(
-            "[v0] Selected club:",
-            club.name,
-            "with",
-            validPlayers.length,
-            "valid players"
-          );
+          // console.log(
+          //   "[v0] Selected club:",
+          //   club.name,
+          //   "with",
+          //   validPlayers.length,
+          //   "valid players"
+          // );
           setCurrentClub(club);
           return club;
         }
@@ -315,8 +315,8 @@ export function useNationalTeamGame({
         return {
           valid: false,
           message:
-            "No hay posiciones disponibles en la formación para este jugador",
-          errorType: "position_unavailable",
+            "El jugador jugó en este club, pero no puede ocupar ninguna de las posiciones disponibles.",
+          errorType: "valid_club_wrong_position",
           player: matchedPlayer,
           club: clubPath.club,
         };
@@ -370,7 +370,7 @@ export function useNationalTeamGame({
       );
 
       if (coachesThatFit.length > 0) {
-        console.log("[DT] Club seleccionado:", club.name);
+        // console.log("[DT] Club seleccionado:", club.name);
         setCurrentClub(club);
         return club;
       }
@@ -500,10 +500,10 @@ export function useNationalTeamGame({
     setPlayerInput("");
     setCoachInput("");
 
-    console.log("[v0] Initializing game with:", {
-      argentineClubs: argentineClubs.length,
-      sanLorenzoPlayers: sanLorenzoPlayers.length,
-    });
+    // console.log("[v0] Initializing game with:", {
+    //   argentineClubs: argentineClubs.length,
+    //   sanLorenzoPlayers: sanLorenzoPlayers.length,
+    // });
 
     const firstClub = getNextValidClub(
       [],
@@ -512,14 +512,14 @@ export function useNationalTeamGame({
     );
 
     if (firstClub) {
-      console.log("[v0] First club selected:", firstClub.name);
+      // console.log("[v0] First club selected:", firstClub.name);
       toast.success(
         `¡Nuevo juego iniciado con formación ${randomFormation}! Modo: ${
           gameMode === "time" ? "Tiempo" : "Vidas"
         }`
       );
     } else {
-      console.log("[v0] No valid club found on initialization");
+      // console.log("[v0] No valid club found on initialization");
       setErrorMessage("No se pudo inicializar el juego. Intenta de nuevo.");
     }
   }, [gameMode, getNextValidClub, argentineClubs, sanLorenzoPlayers]);
@@ -540,37 +540,52 @@ export function useNationalTeamGame({
         vacantPositions
       );
 
+      // === ❌ CASOS DE ERROR ===
       if (!validation.valid) {
-        if (onIncorrectAnswer) {
-          onIncorrectAnswer(validation.message);
-        }
+        const { errorType, message } = validation;
 
-        if (validation.errorType === "position_unavailable") {
+        // ❗ ESTE ERROR NO DEBE QUITAR VIDAS
+        if (errorType === "valid_club_wrong_position") {
           const playerName = validation.player?.fullName || playerInput;
           const playerPositions =
             validation.player?.positions?.join(", ") || "desconocidas";
-          const message = `${playerName} no puede entrar en la formación. Sus posiciones (${playerPositions}) no están disponibles en el campo.`;
 
-          setPositionErrorMessage(message);
+          const msg = `${playerName} no puede entrar en la formación. Sus posiciones (${playerPositions}) no están disponibles en el campo.`;
+
+          setPositionErrorMessage(msg);
           setTimeout(() => setPositionErrorMessage(null), 3000);
-          setPlayerInput("");
-          setIsSubmitting(false);
-          return;
-        } else {
-          toast.error(validation.message);
+
+          // 👉 NO SE REGISTRA intento
+          // 👉 NO SE DESCUENTAN vidas
+          // 👉 NO SE LLAMA onIncorrectAnswer
+          // 👉 SOLO se limpia input
           setPlayerInput("");
           setIsSubmitting(false);
           return;
         }
+
+        // === Otros errores (estos sí cuentan como incorrectos normales) ===
+        if (onIncorrectAnswer) {
+          onIncorrectAnswer(message); // aquí tu gameLogic descuenta vidas
+        }
+
+        toast.error(message);
+        setPlayerInput("");
+        setIsSubmitting(false);
+        return;
       }
 
+      // === ✔️ PLAYER VÁLIDO ===
+
       const playerPositions = validation.player.positions;
+
       const availableSpecificPositions = vacantPositions.filter((vacantPos) =>
         playerPositions.includes(vacantPos)
       );
 
       const uniquePositions = [...new Set(availableSpecificPositions)];
 
+      // === Debe elegir posición ===
       if (uniquePositions.length > 1) {
         setCurrentPlayer(validation.player);
         setAvailablePositions(uniquePositions);
@@ -685,10 +700,10 @@ export function useNationalTeamGame({
       setCoachInput("");
       setIsSubmitting(false);
 
-      console.log(
-        "[v0] Coach validated and stored:",
-        validation.coach.fullName
-      );
+      // console.log(
+      //   "[v0] Coach validated and stored:",
+      //   validation.coach.fullName
+      // );
 
       if (gameLogic) {
         gameLogic.endGame(true, { coach: validation.coach });

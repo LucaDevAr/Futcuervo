@@ -1,207 +1,250 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 
-export const useGameAttemptsStore = create(
+const DEBUG =
+  typeof window !== "undefined" && process.env.NEXT_PUBLIC_DEBUG === "true";
+
+/**
+ * Utilidad: comparamos YYYY-MM-DD de dos ISO strings
+ */
+function isSameDay(isoA, isoB) {
+  try {
+    const a = new Date(isoA);
+    const b = new Date(isoB);
+    return (
+      a.getFullYear() === b.getFullYear() &&
+      a.getMonth() === b.getMonth() &&
+      a.getDate() === b.getDate()
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validación estricta de la estructura guardada en storage
+ * Debe tener: { clubs: { [clubId|'null']: { lastAttempts: {...}, totalGames, lastUpdated } }, allAttemptsFetched: boolean }
+ */
+function isValidPersistedAttempts(obj) {
+  if (!obj || typeof obj !== "object") return false;
+  if (!obj.clubs || typeof obj.clubs !== "object") return false;
+
+  // Validar que las keys sean válidas (null o hex de 24 chars)
+  const keys = Object.keys(obj.clubs);
+  for (const key of keys) {
+    if (key !== "null" && !/^[0-9a-f]{24}$/i.test(key)) return false;
+
+    const clubData = obj.clubs[key];
+    if (!clubData || typeof clubData !== "object") return false;
+    if (!clubData.lastAttempts || typeof clubData.lastAttempts !== "object")
+      return false;
+  }
+
+  return typeof obj.allAttemptsFetched === "boolean";
+}
+
+const customStorage = {
+  getItem: (name) => {
+    const str = localStorage.getItem(name);
+    return str || null;
+  },
+  setItem: (name, value) => {
+    try {
+      const parsed = JSON.parse(value);
+      // Si state está vacío (sin clubs y no fetched), NO escribir
+      if (
+        parsed.state &&
+        Object.keys(parsed.state.clubs || {}).length === 0 &&
+        !parsed.state.allAttemptsFetched
+      ) {
+        // Limpiar si ya existe
+        localStorage.removeItem(name);
+        return;
+      }
+      // Solo escribir si hay datos reales
+      localStorage.setItem(name, value);
+    } catch {
+      localStorage.setItem(name, value);
+    }
+  },
+  removeItem: (name) => {
+    localStorage.removeItem(name);
+  },
+};
+
+const useGameAttemptsStore = create(
   persist(
     (set, get) => ({
-      clubs: {}, // { "null": { lastAttempts: {...}, totalGames: 0, lastUpdated: "..." }, "clubId": {...} }
-      isLoading: false,
-      error: null,
-      allAttemptsFetched: false, // Track if we've fetched all attempts
+      clubs: {},
+      allAttemptsFetched: false,
 
-      setLastAttempts: (clubId, data) =>
-        set((state) => ({
-          clubs: {
-            ...state.clubs,
-            [clubId || "null"]: {
-              lastAttempts: data.lastAttempts || {},
-              totalGames: data.totalGames || 0,
-              lastUpdated: data.lastUpdated || new Date().toISOString(),
-            },
-          },
-          error: null,
-        })),
-
-      setLoading: (isLoading) => set({ isLoading }),
-
-      setError: (error) => set({ error, isLoading: false }),
-
-      getLastAttempt: (clubId, gameType) => {
-        const { clubs } = get();
-        const clubData = clubs[clubId || "null"];
-        if (!clubData) return null;
-        return clubData.lastAttempts[gameType] || null;
-      },
-
-      wasPlayedToday: (clubId, gameType) => {
-        const attempt = get().getLastAttempt(clubId, gameType);
-        if (!attempt) return false;
-
-        const today = new Date();
-        const attemptDate = new Date(attempt.date || attempt.createdAt);
-
-        return (
-          today.getFullYear() === attemptDate.getFullYear() &&
-          today.getMonth() === attemptDate.getMonth() &&
-          today.getDate() === attemptDate.getDate()
-        );
-      },
-
-      getCurrentStreak: (clubId, gameType) => {
-        const attempt = get().getLastAttempt(clubId, gameType);
-        return attempt?.streak || 0;
-      },
-
-      getBestScore: (clubId, gameType) => {
-        const attempt = get().getLastAttempt(clubId, gameType);
-        return attempt?.recordScore || attempt?.score || 0;
-      },
-
-      updateAttempt: (clubId, gameType, attemptData) =>
+      setAttemptForGame: (clubId, gameType, attemptData) => {
         set((state) => {
-          const clubKey = clubId || "null";
-          const clubData = state.clubs[clubKey] || {
+          const key = clubId || "null";
+          const existing = state.clubs[key] || {
             lastAttempts: {},
             totalGames: 0,
-            lastUpdated: null,
+          };
+          const newAttempts = {
+            ...existing.lastAttempts,
+            [gameType]: attemptData,
           };
 
           return {
             clubs: {
               ...state.clubs,
-              [clubKey]: {
-                ...clubData,
-                lastAttempts: {
-                  ...clubData.lastAttempts,
-                  [gameType]: {
-                    ...attemptData,
-                  },
-                },
-                totalGames: clubData.totalGames + 1,
+              [key]: {
+                lastAttempts: newAttempts,
+                totalGames: Object.keys(newAttempts).length,
                 lastUpdated: new Date().toISOString(),
               },
             },
           };
-        }),
-
-      getClubData: (clubId) => {
-        const { clubs } = get();
-        return clubs[clubId || "null"] || null;
+        });
       },
 
-      setAllAttempts: (attemptsByClub) =>
+      setAllAttempts: (clubsData) => {
         set((state) => {
-          const newClubs = {};
+          const merged = { ...state.clubs };
 
-          for (const [clubId, data] of Object.entries(attemptsByClub)) {
-            newClubs[clubId] = {
-              lastAttempts: data.lastAttempts || {},
-              totalGames: data.totalGames || 0,
+          Object.entries(clubsData).forEach(([clubId, clubAttempts]) => {
+            const key = clubId || "null";
+            const existing = merged[key];
+
+            // Si no hay datos existentes, usar los nuevos directamente
+            if (!existing) {
+              merged[key] = clubAttempts;
+              return;
+            }
+
+            // Si hay datos existentes, mergear por gameType y mantener el más reciente
+            const mergedAttempts = { ...existing.lastAttempts };
+            Object.entries(clubAttempts.lastAttempts || {}).forEach(
+              ([gameType, newAttempt]) => {
+                const existingAttempt = mergedAttempts[gameType];
+
+                // Si no existe o el nuevo es más reciente, usar el nuevo
+                if (
+                  !existingAttempt ||
+                  new Date(newAttempt.date) > new Date(existingAttempt.date)
+                ) {
+                  mergedAttempts[gameType] = newAttempt;
+                }
+              }
+            );
+
+            merged[key] = {
+              lastAttempts: mergedAttempts,
+              totalGames: Object.keys(mergedAttempts).length,
               lastUpdated: new Date().toISOString(),
             };
-          }
+          });
 
-          return {
-            clubs: { ...state.clubs, ...newClubs },
-            allAttemptsFetched: true,
-            error: null,
-          };
-        }),
-
-      // Limpiar datos (logout)
-      clearAttempts: () =>
-        set({
-          clubs: {},
-          isLoading: false,
-          error: null,
-          allAttemptsFetched: false, // Reset flag
-        }),
-
-      needsRefresh: (clubId) => {
-        const { clubs, allAttemptsFetched } = get();
-
-        if (allAttemptsFetched && clubs[clubId || "null"]) {
-          const clubData = clubs[clubId || "null"];
-          const lastUpdate = new Date(clubData.lastUpdated);
-          const now = new Date();
-
-          // Only refresh if day changed or more than 2 hours passed
-          const lastUpdateDay = lastUpdate.toDateString();
-          const currentDay = now.toDateString();
-
-          if (lastUpdateDay !== currentDay) {
-            console.log("[v0] needsRefresh: true - day changed");
-            return true;
-          }
-
-          const hoursDiff = (now - lastUpdate) / (1000 * 60 * 60);
-          return hoursDiff > 2;
-        }
-
-        const clubData = clubs[clubId || "null"];
-
-        if (!clubData || !clubData.lastUpdated) {
-          console.log(
-            "[v0] needsRefresh: true - no data for club:",
-            clubId || "null"
-          );
-          return true;
-        }
-
-        const lastUpdate = new Date(clubData.lastUpdated);
-        const now = new Date();
-
-        // Refrescar si cambió el día
-        const lastUpdateDay = lastUpdate.toDateString();
-        const currentDay = now.toDateString();
-
-        if (lastUpdateDay !== currentDay) {
-          console.log(
-            "[v0] needsRefresh: true - day changed from",
-            lastUpdateDay,
-            "to",
-            currentDay,
-            "for club:",
-            clubId || "null"
-          );
-          return true;
-        }
-
-        // También refrescar si han pasado más de 2 horas
-        const hoursDiff = (now - lastUpdate) / (1000 * 60 * 60);
-        const shouldRefresh = hoursDiff > 2;
-
-        console.log(
-          "[v0] needsRefresh:",
-          shouldRefresh,
-          "- hours diff:",
-          hoursDiff,
-          "for club:",
-          clubId || "null"
-        );
-        return shouldRefresh;
+          return { clubs: merged, allAttemptsFetched: true };
+        });
       },
 
-      forceRefresh: (clubId = null) => {
-        if (clubId === null) {
-          // Limpiar todos los clubs
-          set({ clubs: {}, allAttemptsFetched: false }); // Reset flag
-        } else {
-          // Limpiar solo un club específico
-          set((state) => {
-            const newClubs = { ...state.clubs };
-            delete newClubs[clubId || "null"];
-            return { clubs: newClubs };
+      getClubData: (clubId) => {
+        const key = clubId || "null";
+        return get().clubs[key] || null;
+      },
+
+      getAttemptForGame: (clubId, gameType) => {
+        const key = clubId || "null";
+        return get().clubs[key]?.lastAttempts?.[gameType] || null;
+      },
+
+      getLastAttempt: (clubId, gameType) => {
+        return get().getAttemptForGame(clubId, gameType);
+      },
+
+      wasPlayedToday: (clubId, gameType) => {
+        return get().hasAttemptToday(clubId, gameType);
+      },
+
+      getCurrentStreak: (clubId, gameType) => {
+        const attempt = get().getAttemptForGame(clubId, gameType);
+        return attempt?.streak || 0;
+      },
+
+      getBestScore: (clubId, gameType) => {
+        const attempt = get().getAttemptForGame(clubId, gameType);
+        return attempt?.recordScore || 0;
+      },
+
+      updateAttempt: (clubId, gameType, attemptData) => {
+        get().setAttemptForGame(clubId, gameType, attemptData);
+      },
+
+      clearAttempts: () => {
+        if (DEBUG) console.log("[ATTEMPTS] Limpiando todos los intentos");
+        set({ clubs: {}, allAttemptsFetched: false });
+      },
+
+      hasAttemptToday: (clubId, gameType) => {
+        const attempt = get().getAttemptForGame(clubId, gameType);
+        if (!attempt?.date) return false;
+        const today = new Date().toISOString().split("T")[0];
+        const attemptDate = attempt.date.split("T")[0];
+        return attemptDate === today;
+      },
+
+      resetForNewDay: () => {
+        if (DEBUG) console.log("[ATTEMPTS] Reset para nuevo día");
+        set({ clubs: {}, allAttemptsFetched: false });
+      },
+
+      cleanupOldAttempts: () => {
+        const today = new Date();
+        set((state) => {
+          const cleaned = {};
+          Object.entries(state.clubs).forEach(([key, clubData]) => {
+            const filteredAttempts = {};
+            Object.entries(clubData.lastAttempts || {}).forEach(
+              ([gameType, attempt]) => {
+                if (
+                  attempt.date &&
+                  isSameDay(attempt.date, today.toISOString())
+                ) {
+                  filteredAttempts[gameType] = attempt;
+                }
+              }
+            );
+            if (Object.keys(filteredAttempts).length > 0) {
+              cleaned[key] = {
+                ...clubData,
+                lastAttempts: filteredAttempts,
+                totalGames: Object.keys(filteredAttempts).length,
+              };
+            }
           });
-        }
+          return { clubs: cleaned };
+        });
       },
     }),
     {
       name: "game-attempts-storage",
-      partialize: (state) => ({
-        clubs: state.clubs,
-        allAttemptsFetched: state.allAttemptsFetched, // Persist flag
-      }),
+      storage: createJSONStorage(() => customStorage),
+      partialize: (state) => {
+        if (
+          Object.keys(state.clubs).length === 0 &&
+          !state.allAttemptsFetched
+        ) {
+          return {}; // No guardar nada si está completamente vacío
+        }
+        return {
+          clubs: state.clubs,
+          allAttemptsFetched: state.allAttemptsFetched,
+        };
+      },
+      onRehydrateStorage: () => (state) => {
+        if (DEBUG && state) {
+          console.log("[ATTEMPTS] Hidratación completa desde localStorage");
+        }
+      },
     }
   )
 );
+
+export { useGameAttemptsStore };
+export default useGameAttemptsStore;

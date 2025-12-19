@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { debugLog } from "@/utils/debugLogger";
 import { useGameLogic } from "@/hooks/games/useGameLogic";
 import { GAME_CONFIGS } from "@/constants/gameConfig";
 import { useGameAttempts } from "@/hooks/game-state/useGameAttempts";
-import { useDailyGames } from "@/hooks/game-state/useDailyGames";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
-import { getGame } from "@/utils/gameCache"; // Declare the getGame variable
+import { useDailyGamesStore } from "@/stores/dailyGamesStore";
+import { useGameAttemptsStore } from "@/stores/gameAttemptsStore";
+import { calculateStreak } from "@/utils/date";
+import { useUserStore } from "@/stores/userStore";
 
 function normalizeString(str) {
   return str
@@ -17,9 +20,14 @@ function normalizeString(str) {
 }
 
 export function useCareerGame({ gameMode, onGameEnd, clubId }) {
+  // debugLog.hookLifecycle("useCareerGame", "m  ount", { gameMode, clubId });
+
+  const user = useUserStore((state) => state.user);
+
   const [careerGame, setCareerGame] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+
   const [guess, setGuess] = useState("");
   const [revealedIndices, setRevealedIndices] = useState([]);
   const [clubIndex, setClubIndex] = useState(null);
@@ -30,46 +38,61 @@ export function useCareerGame({ gameMode, onGameEnd, clubId }) {
 
   const localAttempts = useLocalGameAttempts(clubId);
   const { getLastAttempt, refetch: refetchAttempts } = useGameAttempts(clubId);
-  const { getGame } = useDailyGames(clubId);
+  const gameAttemptsStore = useGameAttemptsStore();
 
   const gameConfig = GAME_CONFIGS.career;
   const timeLimit = gameConfig.modes[gameMode]?.timeLimit || 30;
 
-  // Calcular vidas según cantidad de clubes
   useEffect(() => {
     if (careerGame?.player?.career?.length) {
       const clubCount = careerGame.player.career.length;
       setInitialLives(clubCount > 6 ? 5 : 3);
+      // debugLog.storeUpdate("careerGame", {
+      //   playerName: careerGame.player.fullName,
+      //   clubCount,
+      //   initialLives: clubCount > 6 ? 5 : 3,
+      // });
     }
   }, [careerGame]);
 
-  // Inicializar la lógica del juego correctamente con hooks
   const gameLogic = useGameLogic({
     gameMode,
     timeLimit,
     initialLives,
-    onGameEnd: async (won, stats) => {
+    onGameEnd: async (won, stats, overrideGameData) => {
       const player = careerGame?.player;
-      const gameData = {
-        Nombre: player?.fullName,
-        Nacionalidad: player?.nationality.name,
-        Goles: player?.goals,
-        Partidos: player?.appearances,
-        "Pistas reveladas": revealedIndices.length,
+
+      const gameData = overrideGameData || {
+        Player: player,
+        Pistas: revealedIndices.length,
       };
 
+      // debugLog.hookLifecycle("useCareerGame", "game_end", {
+      //   won,
+      //   playerName: player?.fullName,
+      //   hintsRevealed: revealedIndices.length,
+      // });
+
       await saveGameAttempt(won, stats, gameData);
-      await onGameEnd(won, stats, gameData);
+
+      // SOLO llamar al callback del componente
+      if (onGameEnd) {
+        await onGameEnd(won, stats, gameData);
+      }
     },
   });
 
-  // Guardar intento
   const saveGameAttempt = useCallback(
     async (won, gameStats, gameData) => {
-      if (isSavingRef.current || !gameLogic) return;
+      if (isSavingRef.current) return;
       isSavingRef.current = true;
 
       try {
+        debugLog.hookLifecycle("useCareerGame", "save_start", {
+          clubId: clubId || "global",
+          won,
+        });
+
         const lastAttemptData = localAttempts
           ? localAttempts.getLastAttempt("career")
           : getLastAttempt("career");
@@ -78,6 +101,16 @@ export function useCareerGame({ gameMode, onGameEnd, clubId }) {
         const recordScore = lastAttemptData?.recordScore
           ? Math.max(currentScore, lastAttemptData.recordScore)
           : currentScore;
+
+        let streakValue = lastAttemptData?.streak || 0;
+
+        if (won) {
+          streakValue = calculateStreak(
+            lastAttemptData?.date,
+            lastAttemptData?.streak || 0
+          );
+        }
+
         const attemptData = {
           gameType: "career",
           clubId: clubId || null,
@@ -88,15 +121,23 @@ export function useCareerGame({ gameMode, onGameEnd, clubId }) {
           livesRemaining: gameLogic.lives || 0,
           gameMode,
           gameData,
-          streak: won ? (lastAttemptData?.streak || 0) + 1 : 0,
-          date: new Date(),
+          streak: streakValue,
+          date: new Date().toISOString(),
         };
 
-        if (localAttempts) {
+        if (!user) {
+          // Guardado local solamente cuando NO hay usuario
           localAttempts.updateAttempt("career", attemptData);
           isSavingRef.current = false;
           return;
         }
+
+        debugLog.apiRequest(
+          "POST",
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/career/save`,
+          attemptData,
+          "useCareerGame"
+        );
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/career/save`,
@@ -108,73 +149,82 @@ export function useCareerGame({ gameMode, onGameEnd, clubId }) {
           }
         );
 
-        if (!response.ok)
+        if (!response.ok) {
           throw new Error(`Error al guardar: ${response.status}`);
-        await refetchAttempts();
+        }
+
+        const { attempt: savedAttempt } = await response.json();
+        if (savedAttempt) {
+          gameAttemptsStore.updateAttempt(clubId, "career", {
+            ...attemptData,
+            streak: savedAttempt.streak, // Use backend-calculated streak
+            _id: savedAttempt._id,
+            createdAt: savedAttempt.createdAt,
+            updatedAt: savedAttempt.updatedAt,
+          });
+          if (!user) {
+            localAttempts.updateAttempt("career", {
+              ...attemptData,
+              streak: savedAttempt.streak,
+              _id: savedAttempt._id,
+              createdAt: savedAttempt.createdAt,
+              updatedAt: savedAttempt.updatedAt,
+            });
+          }
+          console.log(
+            "[v0] LocalStorage updated with saved attempt, streak:",
+            savedAttempt.streak
+          );
+        }
       } catch (error) {
+        debugLog.apiError("saveGameAttempt", error, "useCareerGame");
         console.error("Error saving game attempt:", error);
       } finally {
         isSavingRef.current = false;
       }
     },
-    [getLastAttempt, gameLogic, refetchAttempts, clubId, gameMode]
+    [getLastAttempt, localAttempts, gameMode, clubId, gameAttemptsStore]
   );
 
-  // Fetch del juego career
   useEffect(() => {
-    const fetchCareerGame = async () => {
-      if (hasFetchedRef.current) return;
-      hasFetchedRef.current = true;
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
 
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        const cachedGame = getGame("career");
-        if (cachedGame) {
-          setCareerGame(cachedGame);
-          const sanLorenzoIndex = cachedGame.player.career.findIndex((step) =>
-            step.club.name.toLowerCase().includes("san lorenzo")
-          );
-          setClubIndex(sanLorenzoIndex !== -1 ? sanLorenzoIndex : null);
-          setLoading(false);
-          return;
-        }
+    try {
+      const { getGame: getStoredGame } = useDailyGamesStore.getState();
+      const stored = getStoredGame(clubId, "career");
 
-        const localDate = new Date().toLocaleDateString("sv-SE");
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/career-game?date=${localDate}`,
-          {
-            cache: "no-store",
-            credentials: "include",
-          }
+      if (stored) {
+        // debugLog.cacheHit("careerGame", `useCareerGame_${clubId || "global"}`);
+        setCareerGame(stored);
+
+        const sanLorenzoIndex = stored.player.career.findIndex(
+          (step) =>
+            step.club?.name &&
+            normalizeString(step.club.name).includes("san lorenzo")
         );
 
-        const data = await res.json();
-
-        if (!data.careerGame) {
-          setErrorMessage("No hay juego disponible para hoy");
-          return;
-        }
-
-        setCareerGame(data.careerGame);
-        const sanLorenzoIndex = data.careerGame.player.career.findIndex(
-          (step) => step.club.name.toLowerCase().includes("san lorenzo")
-        );
         setClubIndex(sanLorenzoIndex !== -1 ? sanLorenzoIndex : null);
-      } catch (error) {
-        console.error("Error cargando el juego career:", error);
-        setErrorMessage("Error al cargar el juego del día");
-      } finally {
-        setLoading(false);
+      } else {
+        // debugLog.cacheMiss("careerGame", `useCareerGame_${clubId || "global"}`);
+        console.error(
+          "[careerGame] NO daily found in store! You must preload daily games before entering the game."
+        );
+        setErrorMessage("Error: el juego daily de career no está precargado");
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  }, [clubId]);
 
-    fetchCareerGame();
-  }, [clubId, getGame]);
-
-  // Inicializar juego
   const initializeGame = useCallback(() => {
     if (!careerGame || !gameLogic) return;
+
+    // debugLog.hookLifecycle("useCareerGame", "initialize_game", {
+    //   playerName: careerGame.player.fullName,
+    // });
 
     setGuess("");
     setRevealedIndices([]);
@@ -183,9 +233,11 @@ export function useCareerGame({ gameMode, onGameEnd, clubId }) {
     gameLogic.startGame();
   }, [careerGame, gameLogic]);
 
-  // Manejar envío de guess
   const handleSubmit = useCallback(() => {
     if (!guess.trim() || !careerGame || !gameLogic) {
+      // debugLog.hookLifecycle("useCareerGame", "submit_invalid", {
+      //   reason: "empty_guess",
+      // });
       gameLogic?.handleIncorrectAnswer?.("Por favor ingresa un nombre");
       return;
     }
@@ -204,27 +256,76 @@ export function useCareerGame({ gameMode, onGameEnd, clubId }) {
       );
 
     if (isCorrect) {
+      // debugLog.hookLifecycle("useCareerGame", "submit_correct", {
+      //   guess,
+      //   playerName: careerGame.player.fullName,
+      // });
       gameLogic.handleCorrectAnswer(1);
       setTimeout(() => {
         gameLogic.endGame(true);
       }, 1000);
     } else {
+      // debugLog.hookLifecycle("useCareerGame", "submit_incorrect", {
+      //   guess,
+      //   playerName: careerGame.player.fullName,
+      // });
+
       gameLogic.handleIncorrectAnswer("Nombre incorrecto");
       setGuess("");
 
-      // Revelar un club aleatorio
-      const allIndices = careerGame.player.career.map((_, i) => i);
-      const unrevealed = allIndices.filter((i) => !revealedIndices.includes(i));
+      const career = careerGame.player.career;
 
-      if (unrevealed.length > 0) {
-        const randomIndex =
-          unrevealed[Math.floor(Math.random() * unrevealed.length)];
-        setRevealedIndices([...revealedIndices, randomIndex]);
+      // CLUB FORZADO (el que siempre se revela)
+      const forcedClub =
+        clubIndex !== null && career[clubIndex]?.club?.name
+          ? normalizeString(career[clubIndex].club.name)
+          : null;
+
+      // Clubs de pasos ya revelados (por nombre)
+      const revealedClubNames = new Set(
+        revealedIndices
+          .map((i) => career[i]?.club?.name)
+          .filter(Boolean)
+          .map((name) => normalizeString(name))
+      );
+
+      // 1️⃣ Filtrar clubs válidos (no forzados, no revelados)
+      let validUnrevealed = career
+        .map((step, i) => ({
+          index: i,
+          name: step.club?.name ? normalizeString(step.club.name) : null,
+        }))
+        .filter(
+          (item) =>
+            !revealedIndices.includes(item.index) &&
+            item.name !== forcedClub &&
+            !revealedClubNames.has(item.name)
+        );
+
+      // 2️⃣ Si NO quedan clubs válidos, permitir revelar repetidos (pero NO el forzado)
+      if (validUnrevealed.length === 0) {
+        validUnrevealed = career
+          .map((step, i) => ({
+            index: i,
+            name: step.club?.name ? normalizeString(step.club.name) : null,
+          }))
+          .filter(
+            (item) =>
+              !revealedIndices.includes(item.index) && item.name !== forcedClub
+          );
+      }
+
+      // 3️⃣ Si aún así no queda nada → no reveles ningún club
+      if (validUnrevealed.length > 0) {
+        const random =
+          validUnrevealed[Math.floor(Math.random() * validUnrevealed.length)]
+            .index;
+
+        setRevealedIndices((prev) => [...prev, random]);
       }
     }
   }, [guess, careerGame, gameLogic, revealedIndices]);
 
-  // Obtener pasos de carrera con estado de revelado
   const getCareerSteps = useCallback(() => {
     if (!careerGame) return [];
     return careerGame.player.career.map((step, index) => {

@@ -1,8 +1,8 @@
-import React from "react";
 import { GoogleAdsScript } from "@/components/GoogleAdsScript";
 import "./globals.css";
 import ClientProviders from "@/components/ClientProviders";
-import { Analytics } from "@vercel/analytics/react"; // 👈 agrega esto
+import { Analytics } from "@vercel/analytics/react";
+import { cookies } from "next/headers";
 
 export const metadata = {
   title: "FutCuervo - Juegos y Preguntas sobre San Lorenzo",
@@ -42,7 +42,12 @@ export const metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  // Leer cookies (Next.js app router)
+  const cookieStore = await cookies();
+  const access = cookieStore.get("accessToken");
+  const refresh = cookieStore.get("refreshToken");
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -86,12 +91,13 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/icons/futcuervo-512x512.png" />
       </head>
       <body>
-        <ClientProviders>{children}</ClientProviders>
-        {/* Google Ads Script solo en cliente */}
-        {typeof window !== "undefined" && <GoogleAdsScript />}
+        <ClientProviders hasAccessToken={!!access} hasRefreshToken={!!refresh}>
+          {children}
+        </ClientProviders>
 
+        <GoogleAdsScript />
         {/* 👇 Agregamos el componente de analíticas de Vercel */}
-        <Analytics />
+        {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>
   );

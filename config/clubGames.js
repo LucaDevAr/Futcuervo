@@ -88,7 +88,7 @@ export const CLUB_GAMES_CONFIG = {
       images: ["/images/san-lorenzo-escudo.png", "/images/afa-logo.svg"],
     },
     {
-      title: "Equipo internacional",
+      title: "Equipo de ligas",
       gameType: "league",
       path: "/futcuervo/games/league-team",
       images: ["/images/san-lorenzo-escudo.png", "/images/fifa-logo.svg"],
@@ -111,12 +111,12 @@ export const CLUB_GAMES_CONFIG = {
     //   path: "/futcuervo/games/history",
     //   icon: BookOpen,
     // },
-    {
-      title: "Video",
-      gameType: "video",
-      path: "/futcuervo/games/video",
-      image: "/images/video.webp",
-    },
+    // {
+    //   title: "Video",
+    //   gameType: "video",
+    //   path: "/futcuervo/games/video",
+    //   image: "/images/video.webp",
+    // },
     {
       title: "Trayectoria",
       gameType: "career",
@@ -153,7 +153,7 @@ export const CLUB_GAMES_CONFIG = {
       ],
     },
     {
-      title: "Equipo internacional",
+      title: "Equipo ligas",
       gameType: "league",
       path: "/futmerengue/games/league-team",
       images: [

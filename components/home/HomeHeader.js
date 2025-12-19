@@ -1,5 +1,3 @@
-"use client";
-
 export function HomeHeader() {
   return (
     <div className="text-center">

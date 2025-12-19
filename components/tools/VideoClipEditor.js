@@ -12,26 +12,24 @@ export default function VideoClipEditor({
   gameId,
   initialClipStart = 0,
   initialClipEnd = 10,
-  initialAnswerStart = 10,
+  initialAnswerStart = 0,
   initialAnswerEnd = 20,
   onSave,
 }) {
   const [clipStart, setClipStart] = useState(initialClipStart);
   const [clipEnd, setClipEnd] = useState(initialClipEnd);
-  const [answerStart, setAnswerStart] = useState(initialAnswerStart);
-  const [answerEnd, setAnswerEnd] = useState(initialAnswerEnd);
+  const [answerStart, setAnswerStart] = useState(initialAnswerStart ?? 0);
+  const [answerEnd, setAnswerEnd] = useState(initialAnswerEnd ?? 20);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playMode, setPlayMode] = useState("clip");
   const [loading, setLoading] = useState(false);
 
-  // Handle clip range change
   const handleClipRangeChange = (values) => {
     const [start, end] = values;
     setClipStart(start);
     setClipEnd(end);
   };
 
-  // Handle answer range change
   const handleAnswerRangeChange = (values) => {
     const [start, end] = values;
     setAnswerStart(start);
@@ -49,29 +47,27 @@ export default function VideoClipEditor({
     setIsPlaying(!isPlaying);
   };
 
-  const handleVideoEnded = () => {
-    setIsPlaying(false);
-  };
+  const handleVideoEnded = () => setIsPlaying(false);
 
   const handleSaveClip = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/admin/video-games/${gameId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          clipStart,
-          clipEnd,
-          answerStart,
-          answerEnd,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/video-games/${gameId}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            clipStart,
+            clipEnd,
+            answerStart,
+            answerEnd,
+          }),
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error("Error al guardar el clip");
-      }
+      if (!response.ok) throw new Error("Error al guardar el clip");
 
       toast.success("Clip guardado correctamente");
       if (onSave) onSave();
@@ -84,8 +80,10 @@ export default function VideoClipEditor({
   };
 
   return (
-    <div className="space-y-4 p-4 border rounded-lg">
-      <h3 className="text-lg font-medium">Editor de Clip de Video</h3>
+    <div className="space-y-4 p-4 border rounded-lg bg-white dark:bg-neutral-900 dark:border-neutral-800 transition-colors">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        Editor de Clip de Video
+      </h3>
 
       <div className="aspect-video w-full bg-black rounded-lg overflow-hidden">
         {isPlaying ? (
@@ -106,27 +104,32 @@ export default function VideoClipEditor({
       </div>
 
       <div className="space-y-6">
+        {/* 🎬 CLIP (pregunta) */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Clip (Pregunta)</span>
-            <span className="text-sm">
+            <span className="text-sm font-medium text-blue-600 dark:text-[var(--primary)]">
+              Clip (Pregunta)
+            </span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
               {formatTime(clipStart)} - {formatTime(clipEnd)} (
               {(clipEnd - clipStart).toFixed(1)}s)
             </span>
           </div>
+
           <Slider
             min={0}
             max={100}
             step={0.1}
             value={[clipStart, clipEnd]}
             onValueChange={handleClipRangeChange}
-            className="my-4"
+            className="[&_[role=slider]]:bg-[var(--primary)] [&_[role=slider]]:border-[var(--primary)] [&_[role=slider]]:hover:bg-blue-600 dark:[&_[role=slider]]:bg-[var(--primary)] dark:[&_[role=slider]]:hover:bg-[var(--primary)]"
           />
+
           <Button
             onClick={() => handlePlayPause("clip")}
             variant="outline"
             size="sm"
-            className="w-24"
+            className="w-24 border-[var(--primary)] text-blue-600 dark:border-[var(--primary)] dark:text-[var(--primary)] hover:bg-blue-50 dark:hover:bg-blue-900/30"
             disabled={isPlaying && playMode !== "clip"}
           >
             {isPlaying && playMode === "clip" ? (
@@ -141,27 +144,36 @@ export default function VideoClipEditor({
           </Button>
         </div>
 
+        {/* 🎯 RESPUESTA */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Respuesta</span>
-            <span className="text-sm">
+            <span className="text-sm font-medium text-red-600 dark:text-[var(--primary)]">
+              Respuesta
+            </span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
               {formatTime(answerStart)} - {formatTime(answerEnd)} (
               {(answerEnd - answerStart).toFixed(1)}s)
             </span>
           </div>
+
           <Slider
             min={0}
             max={100}
             step={0.1}
-            value={[answerStart, answerEnd]}
+            value={[answerStart, answerEnd]} // 👈 solo value, sin defaultValue
             onValueChange={handleAnswerRangeChange}
-            className="my-4"
+            className="[&_[role=slider]]:bg-[var(--primary)] 
+             [&_[role=slider]]:border-[var(--primary)] 
+             [&_[role=slider]]:hover:bg-red-600 
+             dark:[&_[role=slider]]:bg-[var(--primary)] 
+             dark:[&_[role=slider]]:hover:bg-[var(--primary)]"
           />
+
           <Button
             onClick={() => handlePlayPause("answer")}
             variant="outline"
             size="sm"
-            className="w-24"
+            className="w-24 border-[var(--primary)] text-red-600 dark:border-[var(--primary)] dark:text-[var(--primary)] hover:bg-red-50 dark:hover:bg-red-900/30"
             disabled={isPlaying && playMode !== "answer"}
           >
             {isPlaying && playMode === "answer" ? (
@@ -181,7 +193,7 @@ export default function VideoClipEditor({
         <Button
           onClick={handleSaveClip}
           disabled={loading}
-          className="bg-[var(--azul)] hover:bg-[var(--azul-oscuro)] dark:bg-[var(--rojo)] dark:hover:bg-[var(--rojo-oscuro)]"
+          className="bg-[var(--azul)] hover:bg-[var(--azul-oscuro)] dark:bg-[var(--rojo)] dark:hover:bg-[var(--rojo-oscuro)] text-white"
         >
           <Save className="h-4 w-4 mr-2" /> Guardar Configuración
         </Button>

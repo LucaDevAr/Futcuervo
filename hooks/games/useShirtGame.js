@@ -5,7 +5,11 @@ import { useGameLogic } from "@/hooks/games/useGameLogic";
 import { GAME_CONFIGS } from "@/constants/gameConfig";
 import { useGameAttempts } from "@/hooks/game-state/useGameAttempts";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
-import { getGame } from "@/utils/gameCache"; // Declare the getGame variable
+import { useGameAttemptsStore } from "@/stores/gameAttemptsStore";
+import { useDailyGamesStore } from "@/stores/dailyGamesStore";
+import { debugLog } from "@/utils/debugLogger";
+import { useUserStore } from "@/stores/userStore";
+import { calculateStreak } from "@/utils/date";
 
 function normalizeString(str) {
   return str
@@ -16,6 +20,10 @@ function normalizeString(str) {
 }
 
 export function useShirtGame({ gameMode, onGameEnd, clubId }) {
+  // debugLog.hookLifecycle("useShirtGame", "mount", { gameMode, clubId });
+
+  const user = useUserStore((state) => state.user);
+
   const [shirtGame, setShirtGame] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -32,31 +40,10 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
 
   const localAttempts = useLocalGameAttempts(clubId);
   const { getLastAttempt, refetch: refetchAttempts } = useGameAttempts(clubId);
+  const gameAttemptsStore = useGameAttemptsStore();
 
   const gameConfig = GAME_CONFIGS.shirt;
   const timeLimit = gameConfig.modes[gameMode]?.timeLimit || 60;
-
-  const gameLogic = useGameLogic({
-    gameMode,
-    timeLimit: timeLimit,
-    initialLives: 3,
-    onGameEnd: async (won, stats) => {
-      const gameData = {
-        "Escudo/Emblema":
-          shirtGame?.shirt.emblemType === "escudo" ? "Escudo" : "Emblema",
-        Marca: shirtGame?.shirt.brand || "Sin marca",
-        Sponsors: shirtGame?.shirt.sponsors?.join(", ") || "Sin sponsors",
-        Temporadas:
-          shirtGame?.shirt.seasonsUsed?.join(", ") || "Sin temporadas",
-        step: step,
-        correctSponsors: correctSponsors.length,
-        totalSponsors: shirtGame?.shirt.sponsors?.length || 0,
-      };
-
-      await saveGameAttempt(won, stats, gameData);
-      await onGameEnd(won, stats, gameData);
-    },
-  });
 
   const saveGameAttempt = useCallback(
     async (won, gameStats, gameData) => {
@@ -64,6 +51,12 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
       isSavingRef.current = true;
 
       try {
+        debugLog.hookLifecycle("useShirtGame", "save_start", {
+          won,
+          shirtBrand: shirtGame?.shirt.brand,
+          step,
+        });
+
         const lastAttemptData = localAttempts
           ? localAttempts.getLastAttempt("shirt")
           : getLastAttempt("shirt");
@@ -72,6 +65,14 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
         const recordScore = lastAttemptData?.recordScore
           ? Math.max(currentScore, lastAttemptData.recordScore)
           : currentScore;
+
+        let streakValue = lastAttemptData?.streak || 0;
+        if (won) {
+          streakValue = calculateStreak(
+            lastAttemptData?.date,
+            lastAttemptData?.streak || 0
+          );
+        }
 
         const attemptData = {
           gameType: "shirt",
@@ -83,15 +84,23 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
           livesRemaining: gameLogic.lives || 0,
           gameMode,
           gameData,
-          streak: won ? (lastAttemptData?.streak || 0) + 1 : 0,
-          date: new Date(),
+          streak: streakValue,
+          date: new Date().toISOString(),
         };
 
-        if (localAttempts) {
+        if (!user) {
+          // Guardado local solamente cuando NO hay usuario
           localAttempts.updateAttempt("shirt", attemptData);
           isSavingRef.current = false;
           return;
         }
+
+        debugLog.apiRequest(
+          "POST",
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/shirt/save`,
+          attemptData,
+          "useShirtGame"
+        );
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/shirt/save`,
@@ -105,73 +114,95 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
 
         if (!response.ok)
           throw new Error(`Error al guardar: ${response.status}`);
-        await refetchAttempts();
+
+        const { attempt: savedAttempt } = await response.json();
+        if (savedAttempt) {
+          gameAttemptsStore.updateAttempt(clubId, "shirt", {
+            ...attemptData,
+            streak: savedAttempt.streak, // Use backend-calculated streak
+            _id: savedAttempt._id,
+            createdAt: savedAttempt.createdAt,
+            updatedAt: savedAttempt.updatedAt,
+          });
+          if (!user) {
+            localAttempts.updateAttempt("shirt", {
+              ...attemptData,
+              streak: savedAttempt.streak,
+              _id: savedAttempt._id,
+              createdAt: savedAttempt.createdAt,
+              updatedAt: savedAttempt.updatedAt,
+            });
+          }
+          console.log(
+            "[v0] LocalStorage updated with saved attempt, streak:",
+            savedAttempt.streak
+          );
+        }
       } catch (error) {
+        debugLog.apiError("saveGameAttempt", error, "useShirtGame");
         console.error("Error saving game attempt:", error);
       } finally {
         isSavingRef.current = false;
       }
     },
-    [
-      step,
-      getLastAttempt,
-      localAttempts,
-      gameMode,
-      gameLogic.lives,
-      refetchAttempts,
-      clubId,
-      shirtGame,
-    ]
+    [getLastAttempt, localAttempts, gameMode, clubId, gameAttemptsStore]
   );
 
-  // Fetch shirt game
+  const gameLogic = useGameLogic({
+    gameMode,
+    timeLimit: timeLimit,
+    initialLives: 3,
+    onGameEnd: async (won, stats, overrideGameData) => {
+      const gameData = {
+        "Escudo/Emblema":
+          shirtGame?.shirt.emblemType === "escudo" ? "Escudo" : "Emblema",
+        Marca: shirtGame?.shirt.brand || "Sin marca",
+        Sponsors: shirtGame?.shirt.sponsors?.join(", ") || "Sin sponsors",
+        Temporadas:
+          shirtGame?.shirt.seasonsUsed?.join(", ") || "Sin temporadas",
+      };
+
+      // debugLog.hookLifecycle("useShirtGame", "game_end", {
+      //   won,
+      //   shirtBrand: shirtGame?.shirt.brand,
+      //   step,
+      // });
+
+      await saveGameAttempt(won, stats, gameData);
+      await onGameEnd(won, stats, gameData);
+    },
+  });
+
   useEffect(() => {
-    const fetchShirtGame = async () => {
-      if (hasFetchedRef.current) return;
-      hasFetchedRef.current = true;
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
 
-      try {
-        setLoading(true);
+    setLoading(true);
 
-        const cachedGame = getGame("shirt", clubId);
-        console.log("[v0] useShirtGame - cached game:", cachedGame);
+    try {
+      const { getGame: getStoredGame } = useDailyGamesStore.getState();
+      const stored = getStoredGame(clubId, "shirt");
 
-        if (cachedGame) {
-          setShirtGame(cachedGame);
-          setLoading(false);
-          return;
-        }
-
-        const localDate = new Date().toLocaleDateString("sv-SE");
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/shirt/daily?clubId=${clubId}&date=${localDate}`,
-          {
-            cache: "no-store",
-            credentials: "include",
-          }
-        );
-
-        const data = await res.json();
-
-        if (!data.shirtGame) {
-          setErrorMessage("No hay camiseta disponible para hoy");
-          return;
-        }
-
-        setShirtGame(data.shirtGame);
-      } catch (error) {
-        console.error("Error cargando la camiseta diaria:", error);
-        setErrorMessage("Error al cargar la camiseta del día");
-      } finally {
-        setLoading(false);
+      if (stored) {
+        // debugLog.cacheHit("shirtGame", `useShirtGame_${clubId || "global"}`);
+        setShirtGame(stored);
+      } else {
+        // debugLog.cacheMiss("shirtGame", `useShirtGame_${clubId || "global"}`);
+        console.error("[shirtGame] NO daily found in store!");
+        setErrorMessage("Error: la camiseta diaria no está precargada");
       }
-    };
-
-    fetchShirtGame();
+    } finally {
+      setLoading(false);
+    }
   }, [clubId]);
 
   const initializeGame = useCallback(() => {
     if (!shirtGame) return;
+
+    // debugLog.hookLifecycle("useShirtGame", "initialize_game", {
+    //   shirtBrand: shirtGame.shirt.brand,
+    //   step: 1,
+    // });
 
     setStep(1);
     setInput("");
@@ -182,7 +213,6 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
 
     gameLogic.startGame();
 
-    // Skip Step 1 if no emblemType
     if (!shirtGame.shirt.emblemType) {
       setStep(2);
     }
@@ -202,6 +232,12 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
 
       const correctAnswer = shirt.emblemType?.toLowerCase() || "escudo";
       isCorrect = selectedEmblemType === correctAnswer;
+
+      // debugLog.hookLifecycle("useShirtGame", "submit_emblem", {
+      //   selected: selectedEmblemType,
+      //   correct: correctAnswer,
+      //   isCorrect,
+      // });
 
       if (isCorrect) {
         gameLogic.handleCorrectAnswer(5);
@@ -225,6 +261,12 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
       const correctBrand = normalizeString(shirt.brand || "");
       isCorrect = value === correctBrand;
 
+      // debugLog.hookLifecycle("useShirtGame", "submit_brand", {
+      //   submitted: input,
+      //   correct: correctBrand,
+      //   isCorrect,
+      // });
+
       if (isCorrect) {
         gameLogic.handleCorrectAnswer(5);
         setTimeout(() => {
@@ -243,6 +285,12 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
       }
 
       isCorrect = Number.parseInt(value) === (shirt.sponsors?.length || 0);
+
+      // debugLog.hookLifecycle("useShirtGame", "submit_count", {
+      //   submitted: value,
+      //   correct: shirt.sponsors?.length || 0,
+      //   isCorrect,
+      // });
 
       if (isCorrect) {
         gameLogic.handleCorrectAnswer(5);
@@ -284,17 +332,23 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
         gameLogic.handleIncorrectAnswer("Sponsor incorrecto.");
         setInput("");
       }
-    } else if (step === 5) {
-      if (selectedSeasons.length === 0) {
-        gameLogic.handleIncorrectAnswer(
-          "Por favor selecciona al menos una temporada"
-        );
-        return;
-      }
 
+      // debugLog.hookLifecycle("useShirtGame", "submit_sponsor", {
+      //   submitted: input,
+      //   correctSponsors: correctSponsors.length,
+      //   totalSponsors: shirt.sponsors?.length || 0,
+      //   isCorrect: shirt.sponsors?.some((s) => normalizeString(s) === value),
+      // });
+    } else if (step === 5) {
       const correct =
         selectedSeasons.sort().join(",") ===
         (shirt.seasonsUsed?.sort().join(",") || "");
+
+      // debugLog.hookLifecycle("useShirtGame", "submit_seasons", {
+      //   selectedSeasons,
+      //   correctSeasons: shirt.seasonsUsed,
+      //   isCorrect: correct,
+      // });
 
       if (correct) {
         gameLogic.handleCorrectAnswer(5);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   Menu,
@@ -11,11 +11,11 @@ import {
   UserCog,
   BookOpen,
   Music,
-  Image as ImageIcon,
+  ImageIcon,
+  CircleUserRound,
 } from "lucide-react";
 import DarkModeButton from "@/components/layout/DarkModeButton";
 import { useUserStore } from "@/stores/userStore";
-import { useUserSession } from "@/hooks/auth/useUserSession";
 
 export default function MobileMenu({ isDarkMode, onToggleDarkMode }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,7 +24,6 @@ export default function MobileMenu({ isDarkMode, onToggleDarkMode }) {
 
   const user = useUserStore((state) => state.user);
   const clearUser = useUserStore((state) => state.clearUser);
-  const { isLoading } = useUserSession(); // solo mantiene estado sincronizado
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -57,9 +56,29 @@ export default function MobileMenu({ isDarkMode, onToggleDarkMode }) {
     }
 
     clearUser();
-    localStorage.removeItem("userFallback");
+    localStorage.removeItem("user");
+    localStorage.removeItem("game-attempts-storage");
+
     window.location.href = "/";
   };
+
+  const userAvatar = useMemo(() => {
+    if (!user) {
+      return <User className="w-10 h-10 text-[var(--gris)]" />;
+    }
+
+    if (user.image) {
+      return (
+        <img
+          src={user.image}
+          alt={user.name || "Usuario"}
+          className="w-10 h-10 rounded-full object-cover"
+        />
+      );
+    }
+
+    return <CircleUserRound className="w-10 h-10 text-[var(--gris)]" />;
+  }, [user]);
 
   return (
     <div className="relative text-[var(--text)]">
@@ -80,15 +99,7 @@ export default function MobileMenu({ isDarkMode, onToggleDarkMode }) {
           <div className="p-4 space-y-3">
             {/* User Info */}
             <div className="flex items-center gap-3 border-b pb-3 border-[var(--primary)] dark:border-[var(--secondary)]">
-              {user?.image ? (
-                <img
-                  src={user.image}
-                  alt="Perfil"
-                  className="w-10 h-10 rounded-md object-cover"
-                />
-              ) : (
-                <User className="w-10 h-10 text-[var(--gris)]" />
-              )}
+              {userAvatar}
 
               <div>
                 <p className="font-semibold text-[var(--text)">

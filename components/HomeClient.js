@@ -1,22 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Footer from "@/components/layout/Footer";
 import ClubSelector from "@/components/ClubSelector";
 import Rankings from "@/components/Rankings";
 import { Shield, Trophy, X } from "lucide-react";
-import { HomeStats } from "./home/HomeStats";
-import { useGameStats } from "@/hooks/game-state/useGameStats";
 import { useClubGames } from "@/hooks/games/useClubGames";
 
 export default function HomeClient() {
-  const { stats, isLoading: statsLoading, error } = useGameStats();
+  const router = useRouter();
   const [clubModalOpen, setClubModalOpen] = useState(false);
   const [rankingModalOpen, setRankingModalOpen] = useState(false);
   const gameItems = useClubGames("general");
 
   const handleGameClick = (item) => {
-    window.location.href = item.path;
+    router.push(item.path);
   };
 
   return (

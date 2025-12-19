@@ -33,7 +33,7 @@ export default function LeaguesPage() {
     setShowFilters,
     handleDelete,
   } = useAdminPage({
-    apiEndpoint: "/api/admin/leagues",
+    apiEndpoint: `${process.env.NEXT_PUBLIC_BASE_URL}/api/admin/leagues`,
     itemName: "Liga",
     itemNamePlural: "ligas",
     searchFields: ["name", "country"],

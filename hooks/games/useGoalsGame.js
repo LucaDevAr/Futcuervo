@@ -5,6 +5,20 @@ import { useGameLogic } from "@/hooks/games/useGameLogic";
 import { GAME_CONFIGS } from "@/constants/gameConfig";
 import { useGameAttempts } from "@/hooks/game-state/useGameAttempts";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
+import { useUserStore } from "@/stores/userStore";
+import { useGameAttemptsStore } from "@/stores/gameAttemptsStore";
+import { debugLog } from "@/utils/debugLogger";
+
+const getPlayerWeight = (player) => {
+  const goals = player.goals || 0;
+
+  if (goals <= 5) return 0.4;
+  if (goals <= 10) return 0.7;
+  if (goals <= 20) return 1.1;
+  if (goals <= 50) return 1.8;
+  if (goals <= 100) return 2.5;
+  return 3.0; // Goleadores históricos = más probabilidad
+};
 
 export function useGoalsGame({
   gameMode,
@@ -28,13 +42,18 @@ export function useGoalsGame({
   const [fetchError, setFetchError] = useState(null);
   const [hasWon, setHasWon] = useState(false);
 
+  const user = useUserStore((state) => state.user);
+
   const nextPlayerRef = useRef(null);
   const usedPlayersRef = useRef(new Set());
-  const hasFetchedRef = useRef(false);
   const hasWonRef = useRef(false);
+
+  const isSavingRef = useRef(false);
+  const hasFetchedRef = useRef(false);
 
   const localAttempts = useLocalGameAttempts(clubId);
   const { getLastAttempt, refetch: refetchAttempts } = useGameAttempts(clubId);
+  const gameAttemptsStore = useGameAttemptsStore();
 
   const gameLogic = useGameLogic({
     gameMode,
@@ -73,14 +92,29 @@ export function useGoalsGame({
 
   const saveGameAttempt = useCallback(
     async (won, gameStats, gameData) => {
+      if (isSavingRef.current) return;
+
+      isSavingRef.current = true;
+
       try {
-        const lastAttemptData = localAttempts
-          ? localAttempts.getLastAttempt("goals")
-          : getLastAttempt("goals");
+        debugLog.hookLifecycle("useGoalsGame", "save_start", {
+          clubId: clubId || "global",
+          won,
+        });
+
+        const lastAttemptData = user
+          ? getLastAttempt("goals") // ✅ ONLINE
+          : localAttempts.getLastAttempt("goals"); // ✅ OFFLINE
+
+        // 🔒 Normalización segura
         const currentScore = score;
-        const recordScore = lastAttemptData?.recordScore
-          ? Math.max(currentScore, lastAttemptData.recordScore)
-          : currentScore;
+
+        // ⛓️ El récord SIEMPRE viene del último intento guardado
+        const previousRecord = Number.isFinite(lastAttemptData?.recordScore)
+          ? lastAttemptData.recordScore
+          : 0;
+
+        const recordScore = Math.max(previousRecord, currentScore);
 
         const attemptData = {
           gameType: "goals",
@@ -93,14 +127,22 @@ export function useGoalsGame({
           gameMode,
           gameData,
           streak: won ? (lastAttemptData?.streak || 0) + 1 : 0,
-          date: new Date(),
+          date: new Date().toISOString(),
         };
 
-        if (localAttempts) {
+        if (!user) {
+          // Guardado local solamente cuando NO hay usuario
           localAttempts.updateAttempt("goals", attemptData);
           isSavingRef.current = false;
           return;
         }
+
+        debugLog.apiRequest(
+          "POST",
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/goals/save`,
+          attemptData,
+          "useGoalsGame"
+        );
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/goals/save`,
@@ -114,12 +156,32 @@ export function useGoalsGame({
 
         if (!response.ok)
           throw new Error(`Error al guardar: ${response.status}`);
-        await refetchAttempts();
+
+        const { attempt: savedAttempt } = await response.json();
+        if (savedAttempt) {
+          gameAttemptsStore.updateAttempt(clubId, "goals", {
+            ...attemptData,
+            streak: savedAttempt.streak, // Use backend-calculated streak
+            _id: savedAttempt._id,
+            createdAt: savedAttempt.createdAt,
+            updatedAt: savedAttempt.updatedAt,
+          });
+          if (!user) {
+            localAttempts.updateAttempt("goals", {
+              ...attemptData,
+              streak: savedAttempt.streak,
+              _id: savedAttempt._id,
+              createdAt: savedAttempt.createdAt,
+              updatedAt: savedAttempt.updatedAt,
+            });
+          }
+        }
       } catch (error) {
+        debugLog.apiError("saveGameAttempt", error, "useGoalsGame");
         console.error("Error saving game attempt:", error);
       }
     },
-    [score, getLastAttempt, gameMode, gameLogic.lives, refetchAttempts, clubId]
+    [getLastAttempt, localAttempts, gameMode, clubId, gameAttemptsStore]
   );
 
   // -------------------------------
@@ -153,25 +215,52 @@ export function useGoalsGame({
         return;
       }
 
-      const shuffled = [...playersList].sort(() => Math.random() - 0.5);
       const preparePlayer = (p) => ({
         ...p,
         goals: getGoalsForClub(p),
         actionImage: getActionImageForClub(p),
       });
 
-      setLeftPlayer(preparePlayer(shuffled[0]));
-      setRightPlayer(preparePlayer(shuffled[1]));
-      setNextPlayer(preparePlayer(shuffled[2]));
+      // ===============================
+      // SELECCIÓN PONDERADA DE LOS 3 PRIMEROS JUGADORES
+      // ===============================
 
-      usedPlayersRef.current = new Set([
-        shuffled[0]._id,
-        shuffled[1]._id,
-        shuffled[2]._id,
-      ]);
+      const selectWeighted = (list) => {
+        const weights = list.map((p) => getPlayerWeight(p));
+        const totalWeight = weights.reduce((s, w) => s + w, 0);
 
-      if (shuffled.length > 3)
-        nextPlayerRef.current = preparePlayer(shuffled[3]);
+        let rnd = Math.random() * totalWeight;
+
+        for (let i = 0; i < list.length; i++) {
+          if (rnd < weights[i]) return list[i];
+          rnd -= weights[i];
+        }
+        return list[0]; // Fallback
+      };
+
+      const available = [...playersList];
+
+      const first = selectWeighted(available);
+      available.splice(available.indexOf(first), 1);
+
+      const second = selectWeighted(available);
+      available.splice(available.indexOf(second), 1);
+
+      const third = selectWeighted(available);
+      available.splice(available.indexOf(third), 1);
+
+      // ===============================
+
+      setLeftPlayer(preparePlayer(first));
+      setRightPlayer(preparePlayer(second));
+      setNextPlayer(preparePlayer(third));
+
+      usedPlayersRef.current = new Set([first._id, second._id, third._id]);
+
+      if (available.length > 0) {
+        const fourth = available[0];
+        nextPlayerRef.current = preparePlayer(fourth);
+      }
 
       setFetchError(null);
     },
@@ -211,7 +300,30 @@ export function useGoalsGame({
   const getNextRandomPlayer = useCallback(() => {
     const available = players.filter((p) => !usedPlayersRef.current.has(p._id));
     if (available.length === 0) return null;
-    return available[Math.floor(Math.random() * available.length)];
+
+    // Calcular pesos basados en goles
+    const weights = available.map((p) => getPlayerWeight(p));
+
+    // Suma total
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+    // Número aleatorio ponderado
+    let random = Math.random() * totalWeight;
+
+    // Elegir jugador según peso
+    for (let i = 0; i < available.length; i++) {
+      if (random < weights[i]) {
+        const selected = available[i];
+        usedPlayersRef.current.add(selected._id);
+        return selected;
+      }
+      random -= weights[i];
+    }
+
+    // Fallback
+    const fallback = available[0];
+    usedPlayersRef.current.add(fallback._id);
+    return fallback;
   }, [players]);
 
   const prepareNextPlayer = useCallback(() => {

@@ -10,8 +10,6 @@ import { useGameAttempts } from "@/hooks/game-state/useGameAttempts";
 import { useUserStore } from "@/stores/userStore";
 import { useVideoGame } from "@/hooks/games/useVideoGame";
 
-export const dynamic = "force-dynamic";
-
 export default function VideoGame({ clubId, homeUrl }) {
   const [gameMode] = useState("normal");
 

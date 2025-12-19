@@ -1,16 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { useUserSession } from "@/hooks/auth/useUserSession";
 import { User, Mail } from "lucide-react";
 import Footer from "@/components/layout/Footer";
 import Navbar from "@/components/layout/Navbar";
 import { useClubMemberships } from "@/hooks/auth/useClubMemberships";
 import ClubMemberSelector from "@/components/ClubMemberSelector";
 import ConfirmModal from "@/components/ConfirmModal";
+import { useUserStore } from "@/stores/userStore";
+
+const canLeave = (membership) => {
+  const joined = new Date(membership.joinedDate);
+  const now = new Date();
+  const diffDays = (now - joined) / (1000 * 60 * 60 * 24);
+
+  return diffDays >= 7;
+};
+
+const getDaysRemaining = (membership) => {
+  const joined = new Date(membership.joinedDate);
+  const now = new Date();
+  const diffDays = (now - joined) / (1000 * 60 * 60 * 24);
+  return Math.ceil(7 - diffDays);
+};
 
 export default function ProfilePage() {
-  const { user, loading } = useUserSession({ required: true });
+  const user = useUserStore((s) => s.user);
+  const loading = !user;
+
   const { memberships, join, leave } = useClubMemberships();
   const [errorModalOpen, setErrorModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -20,8 +37,10 @@ export default function ProfilePage() {
   const [selectedClub, setSelectedClub] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
 
-  const partnerClub = memberships.find((m) => m.role === "partner");
-  const supporterClub = memberships.find((m) => m.role === "supporter");
+  const safeMemberships = (memberships || []).filter(Boolean);
+
+  const partnerClub = safeMemberships.find((m) => m.role === "partner");
+  const supporterClub = safeMemberships.find((m) => m.role === "supporter");
 
   if (loading || !user) return null;
 
@@ -33,6 +52,24 @@ export default function ProfilePage() {
   };
 
   const askLeave = (clubId, role) => {
+    const membership = safeMemberships.find(
+      (m) => m.club.id === clubId && m.role === role
+    );
+
+    if (!membership) return;
+
+    // ⛔ BLOQUEO INMEDIATO (0 fetchs)
+    if (!canLeave(membership)) {
+      const remaining = getDaysRemaining(membership);
+
+      setErrorMessage(
+        `Aún no puedes salir del club. Debes esperar ${remaining} día(s) más.`
+      );
+      setErrorModalOpen(true);
+      return;
+    }
+
+    // ✔ Si pasó la validación → abrir modal de confirmación
     setSelectedClub({ _id: clubId });
     setSelectedRole(role);
     setAction("leave");
@@ -60,7 +97,7 @@ export default function ProfilePage() {
     setAction(null);
   };
 
-  const excludedClubIds = memberships.map((m) => m.clubId._id);
+  const excludedClubIds = safeMemberships.map((m) => m.club.id);
 
   const getDaysRemaining = (club) => {
     const joined = new Date(club.joinedDate);
@@ -135,10 +172,10 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <img
-                      src={partnerClub.clubId.logo}
+                      src={partnerClub.club.logo}
                       className="w-10 h-10 rounded object-contain"
                     />
-                    <span>{partnerClub.clubId.name}</span>
+                    <span>{partnerClub.club.name}</span>
                   </div>
 
                   {/* PUNTOS DEL CLUB */}
@@ -147,7 +184,7 @@ export default function ProfilePage() {
                   </span>
 
                   <button
-                    onClick={() => askLeave(partnerClub.clubId._id, "partner")}
+                    onClick={() => askLeave(partnerClub.club.id, "partner")}
                     className="text-red-500 hover:underline"
                   >
                     Salir
@@ -186,10 +223,10 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <img
-                      src={supporterClub.clubId.logo}
+                      src={supporterClub.club.logo}
                       className="w-10 h-10 rounded object-contain"
                     />
-                    <span>{supporterClub.clubId.name}</span>
+                    <span>{supporterClub.club.name}</span>
                   </div>
 
                   {/* PUNTOS DEL CLUB */}
@@ -198,9 +235,7 @@ export default function ProfilePage() {
                   </span>
 
                   <button
-                    onClick={() =>
-                      askLeave(supporterClub.clubId._id, "supporter")
-                    }
+                    onClick={() => askLeave(supporterClub.club.id, "supporter")}
                     className="text-red-500 hover:underline"
                   >
                     Salir

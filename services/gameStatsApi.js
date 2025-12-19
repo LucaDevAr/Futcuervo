@@ -1,88 +1,107 @@
 import axios from "axios";
+import { debugLog } from "../utils/debugLogger";
 
-// Use the same configuration as api.js to ensure consistency
 const api = axios.create({
   baseURL: `${process.env.NEXT_PUBLIC_BASE_URL}/api`,
   withCredentials: true,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  headers: { "Content-Type": "application/json" },
 });
 
-// Add request interceptor to log outgoing requests
 api.interceptors.request.use(
   (config) => {
-    console.log("[v0] Outgoing request:", {
-      url: config.url,
-      method: config.method,
-      baseURL: config.baseURL,
-      withCredentials: config.withCredentials,
-      headers: config.headers,
-    });
+    debugLog.apiRequest(
+      config.method,
+      config.url,
+      config.params,
+      "gameStatsApi"
+    );
+    const timestamp = performance.now();
+    config.metadata = { startTime: timestamp };
+    // console.log("🔥 [REQ] →", config.method?.toUpperCase(), config.url);
+    // console.log("🔥 Cookies enviados:", document.cookie ? "Yes" : "None");
     return config;
   },
-  (error) => {
-    console.error("[v0] Request interceptor error:", error);
-    return Promise.reject(error);
-  }
+  (err) => Promise.reject(err)
 );
 
-// Add response interceptor to log responses
 api.interceptors.response.use(
-  (response) => {
-    console.log("[v0] Response received:", {
-      status: response.status,
-      data: response.data,
-      headers: response.headers,
-    });
-    return response;
+  (res) => {
+    const duration = performance.now() - (res.config.metadata?.startTime || 0);
+    const dataSize = JSON.stringify(res.data).length;
+
+    debugLog.apiResponse(res.config.url, res.data);
+    debugLog.fetchOperation(
+      res.config.method,
+      res.config.url,
+      res.status,
+      duration,
+      dataSize
+    );
+    debugLog.performanceMetric(
+      `gameStatsApi_${res.config.method}_response`,
+      duration,
+      "ms",
+      1000
+    );
+
+    // console.log(
+    //   "🟢 [RES OK] ←",
+    //   res.config.url,
+    //   res.status,
+    //   `(${duration.toFixed(2)}ms)`
+    // );
+    return res;
   },
-  (error) => {
-    console.error("[v0] Response interceptor error:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      headers: error.response?.headers,
+  (err) => {
+    debugLog.apiError(err.config?.url, err, "gameStatsApi");
+    debugLog.errorTracking("gameStatsApi_response_error", err, {
+      url: err.config?.url,
+      method: err.config?.method,
+      status: err.response?.status,
     });
-    return Promise.reject(error);
+    console.log(
+      "🔴 [RES ERROR] ←",
+      err.config?.url,
+      err.response?.status,
+      err.message
+    );
+    return Promise.reject(err);
   }
 );
 
 export const gameStatsApi = {
   async getAllUserAttempts() {
     try {
-      console.log("[v0] Fetching ALL user attempts");
+      debugLog.asyncOperation("getAllUserAttempts", "start");
       const response = await api.get("/home/stats/all");
-      console.log("[v0] All attempts response:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("[v0] Error fetching all user attempts:", error);
-      return null;
-    }
-  },
-
-  async getUserStats(clubId) {
-    try {
-      console.log("[v1] Fetching user stats for clubId:", clubId);
-      const response = await api.get("/home/stats/last", {
-        params: { clubId },
+      debugLog.asyncOperation("getAllUserAttempts", "complete", null, {
+        dataItems: response.data?.attemptsByClub
+          ? Object.keys(response.data.attemptsByClub).length
+          : 0,
       });
-      console.log("[v1] Stats response:", response.data);
-      return response.data;
+      return response.data || null;
     } catch (error) {
-      console.error("[v1] Error fetching user stats:", error);
+      debugLog.errorTracking("getAllUserAttempts", error);
+      console.error("[v0] Error fetching all user attempts:", error);
       return null;
     }
   },
 
   async updateGameAttempt(gameType, attemptData) {
     try {
+      debugLog.asyncOperation("updateGameAttempt", "start", null, { gameType });
       const response = await api.post(
         `/games/${gameType}/attempt`,
         attemptData
       );
-      return response.data;
+      debugLog.asyncOperation("updateGameAttempt", "complete", null, {
+        gameType,
+        successful: true,
+      });
+      return response.data || null;
     } catch (error) {
-      console.error("[v1] Error updating game attempt:", error);
+      debugLog.errorTracking("updateGameAttempt", error, { gameType });
+      console.error("[v0] Error updating game attempt:", error);
       throw error;
     }
   },

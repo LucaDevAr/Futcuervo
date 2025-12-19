@@ -1,12 +1,4 @@
-"use client";
-import dynamic from "next/dynamic";
-
-const FutCuervoHome = dynamic(
-  () => import("@/components/futcuervo/FutCuervoHome"),
-  {
-    ssr: false,
-  }
-);
+import FutCuervoHome from "@/components/futcuervo/FutCuervoHome";
 
 export default function FutCuervoPage() {
   return <FutCuervoHome />;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StartScreen from "@/components/screens/StartScreen";
 import EndScreen from "@/components/screens/EndScreen";
 import TeamGameScreen, {
@@ -17,32 +17,46 @@ import { useGameDataPreload } from "@/hooks/games/useGameDataPreload";
 import { User } from "lucide-react";
 import { useLocalGameAttempts } from "@/hooks/game-state/useLocalGameAttempts";
 import { useUserStore } from "@/stores/userStore";
+import { useGameAttemptsStore } from "@/stores/gameAttemptsStore"; // Added import for Zustand store
+import { calculateStreak } from "@/utils/date";
+import { debugLog } from "@/utils/debugLogger";
 
 export default function LeagueTeamGame({ clubId, homeUrl }) {
   const [gameMode, setGameMode] = useState("lives");
   const [isInitializing, setIsInitializing] = useState(false);
   const [initializationError, setInitializationError] = useState(null);
 
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const gameAttemptsStore = useGameAttemptsStore();
+
   const isMobile = useMediaQuery({ maxWidth: 767 });
 
-  const {
-    wasPlayedToday: wasPlayedTodayServer,
-    getLastAttempt: getLastAttemptServer,
-    isLoading: attemptsLoading,
-  } = useGameAttempts(clubId);
+  const user = useUserStore((state) => state.user);
 
-  const localGameAttemptsHook = useLocalGameAttempts(clubId);
+  // ----------------------------------------
+  // ⚠️ SIEMPRE SE LLAMA (regla de hooks)
+  // ----------------------------------------
+  const serverAttempts = useGameAttempts(clubId);
 
-  const user = useUserStore?.((state) => state.user) || null;
+  // ----------------------------------------
+  // 🔥 LOCAL (siempre disponible)
+  // ----------------------------------------
+  const localAttempts = useLocalGameAttempts(clubId);
 
-  const attempts = user
-    ? {
-        wasPlayedToday: wasPlayedTodayServer,
-        getLastAttempt: getLastAttemptServer,
-      }
-    : localGameAttemptsHook;
+  // ----------------------------------------
+  // 🔥 Elección lógica sin romper hooks
+  // ----------------------------------------
+  const attempts = user ? serverAttempts : localAttempts;
 
   const wasPlayedToday = attempts?.wasPlayedToday?.("league") || false;
+
+  const attemptsLoading = user ? serverAttempts?.isLoading : false;
+
   const attemptsAreLoaded = attemptsLoading === false; // si user -> useGameAttempts, si local -> siempre true
 
   const shouldSkipPreload = attemptsAreLoaded && wasPlayedToday;
@@ -74,33 +88,37 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
     timeLimit: GAME_CONFIGS.league?.timeLimit || 60,
     initialLives: 3,
     onGameEnd: async (won, extraData) => {
-      console.log(
-        "%c🎮 ON GAME END DEBUG",
-        "background: #111; color: #0f0; padding: 4px; font-size: 14px;"
-      );
+      debugLog.hookLifecycle("LeagueTeamGame", "save_start", {
+        clubId: clubId || "global",
+        won,
+      });
+      // console.log(
+      //   "%c🎮 ON GAME END DEBUG",
+      //   "background: #111; color: #0f0; padding: 4px; font-size: 14px;"
+      // );
 
-      console.log("🟢 ¿Ganó?", won);
-      console.log("📦 extraData recibido:", extraData);
-      console.log("🎯 extraData.coach:", extraData?.coach);
-      console.log("👤 leagueGame.coach:", leagueGame?.coach);
-      console.log(
-        "📌 leagueGame.coachRef.current:",
-        leagueGame?.coachRef?.current
-      );
+      // console.log("🟢 ¿Ganó?", won);
+      // console.log("📦 extraData recibido:", extraData);
+      // console.log("🎯 extraData.coach:", extraData?.coach);
+      // console.log("👤 leagueGame.coach:", leagueGame?.coach);
+      // console.log(
+      //   "📌 leagueGame.coachRef.current:",
+      //   leagueGame?.coachRef?.current
+      // );
 
-      console.log("📌 Formación:", leagueGame?.formation);
-      console.log(
-        "📌 Posiciones:",
-        leagueGame?.positions?.filter((p) => p.player).length + "/11"
-      );
+      // console.log("📌 Formación:", leagueGame?.formation);
+      // console.log(
+      //   "📌 Posiciones:",
+      //   leagueGame?.positions?.filter((p) => p.player).length + "/11"
+      // );
 
-      console.log("%c--------------------------------------", "color: #888;");
+      // console.log("%c--------------------------------------", "color: #888;");
 
       const coachToSave =
         leagueGame?.coachRef?.current || extraData?.coach || leagueGame?.coach;
 
-      console.log("✅ coachToSave (final):", coachToSave);
-      console.log("✅ coachToSave fullName:", coachToSave?.fullName);
+      // console.log("✅ coachToSave (final):", coachToSave);
+      // console.log("✅ coachToSave fullName:", coachToSave?.fullName);
 
       const formationToSave = leagueGame.formation;
       const positionsToSave = leagueGame.positions;
@@ -138,6 +156,14 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
           ? Math.max(currentScore, lastAttempt.recordScore)
           : currentScore;
 
+        let streakValue = lastAttempt?.streak || 0;
+        if (won) {
+          streakValue = calculateStreak(
+            lastAttempt?.date,
+            lastAttempt?.streak || 0
+          );
+        }
+
         const attemptData = {
           gameType: "league",
           clubId: clubId || null,
@@ -155,20 +181,28 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
           livesRemaining: gameLogic.lives || 0,
           gameMode,
           gameData,
-          streak: won ? (lastAttempt?.streak || 0) + 1 : 0,
-          date: new Date(),
+          streak: streakValue,
+          date: new Date().toISOString(),
         };
 
-        console.log("===== 📦 DEBUG DATA TO SAVE =====");
-        console.log("🧑‍🏫 coach in attemptData:", attemptData.gameData.coach);
-        console.log("📝 attemptData FULL:", attemptData);
-        console.log("==================================");
+        // console.log("===== 📦 DEBUG DATA TO SAVE =====");
+        // console.log("🧑‍🏫 coach in attemptData:", attemptData.gameData.coach);
+        // console.log("📝 attemptData FULL:", attemptData);
+        // console.log("==================================");
 
         try {
           if (!user) {
-            localGameAttemptsHook?.updateAttempt("league", attemptData);
+            // Guardado local solamente cuando NO hay usuario
+            localAttempts.updateAttempt("league", attemptData);
             return;
           }
+
+          debugLog.apiRequest(
+            "POST",
+            `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/league-team/save`,
+            attemptData,
+            "useLeagueTeamGame"
+          );
 
           const response = await fetch(
             `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/league-team/save`,
@@ -180,14 +214,37 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
             }
           );
 
-          console.log("✅ Response:", response.status);
+          // console.log("✅ Response:", response.status);
 
           if (!response.ok)
             throw new Error(`Error al guardar: ${response.status}`);
 
-          const savedData = await response.json();
-          console.log("✅ Attempt guardado:", savedData);
+          const { attempt: savedAttempt } = await response.json();
+          if (savedAttempt) {
+            gameAttemptsStore.updateAttempt(clubId, "league", {
+              ...attemptData,
+              streak: savedAttempt.streak, // Use backend-calculated streak
+              _id: savedAttempt._id,
+              createdAt: savedAttempt.createdAt,
+              updatedAt: savedAttempt.updatedAt,
+            });
+            if (!user) {
+              localAttempts.updateAttempt("league", {
+                ...attemptData,
+                streak: savedAttempt.streak,
+                _id: savedAttempt._id,
+                createdAt: savedAttempt.createdAt,
+                updatedAt: savedAttempt.updatedAt,
+              });
+            }
+            // console.log(
+            //   "[v0] LocalStorage updated with saved attempt, streak:",
+            //   savedAttempt.streak
+            // );
+          }
+          // console.log("✅ LocalStorage updated with saved attempt");
         } catch (error) {
+          debugLog.apiError("saveGameAttempt", error, "useLeagueTeamGame");
           console.error("❌ Error saving game attempt:", error);
         }
       }
@@ -221,6 +278,17 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
       setIsInitializing(false);
     }
   };
+
+  // 🔹 Evita mismatch SSR/CSR
+  if (!isClient) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <p className="text-[var(--primary)] dark:text-[var(--white)]">
+          Cargando juego...
+        </p>
+      </div>
+    );
+  }
 
   if (dataLoading || attemptsLoading)
     return <LoadingScreen message="Cargando jugadores..." />;
@@ -353,13 +421,14 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
                               src={
                                 posData.player.profileImage ||
                                 "/placeholder.svg" ||
+                                "/placeholder.svg" ||
                                 "/placeholder.svg"
                               }
                               alt={posData.player.fullName}
                               className="w-full h-full object-cover rounded-full"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)] rounded-full">
+                            <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)] rounded-full">
                               <User className="h-4 w-4 md:h-5 md:w-5 text-gray-500 dark:text-gray-400" />
                             </div>
                           )
@@ -390,7 +459,7 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
           <div className="flex flex-col items-center justify-center min-w-[40px] md:min-w-[120px] h-auto md:h-full ml-2 md:ml-0 lg:ml-4">
             <div className="w-10 h-10 md:w-14 md:h-14 mb-1 md:mb-2 flex-shrink-0">
               <div className="relative w-full h-full">
-                <div className="absolute inset-0 rounded-full shadow-md overflow-hidden bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)]">
+                <div className="absolute inset-0 rounded-full shadow-md overflow-hidden bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)]">
                   {coachFromData?.profileImage ? (
                     <img
                       src={coachFromData.profileImage || "/placeholder.svg"}
@@ -405,7 +474,7 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
                 </div>
               </div>
             </div>
-            <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--blanco)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
+            <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--white)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
               {coachFromData ? `DT: ${coachFromData.fullName}` : "DT: ?"}
             </span>
           </div>
@@ -426,7 +495,7 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
         extraContentRight={
           !gameWon &&
           possiblePlayersFromData.length > 0 && (
-            <div className="rounded-lg bg-[var(--rojo)] dark:bg-[var(--azul)] p-1">
+            <div className="rounded-lg bg-[var(--secondary)] dark:bg-[var(--primary)] p-1">
               <h3 className="text-base font-bold mb-1 text-white text-center">
                 Jugadores posibles para {currentLeagueFromData?.name}
               </h3>
@@ -536,13 +605,14 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
                               src={
                                 posData.player.profileImage ||
                                 "/placeholder.svg" ||
+                                "/placeholder.svg" ||
                                 "/placeholder.svg"
                               }
                               alt={posData.player.fullName}
                               className="w-full h-full object-cover rounded-full"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)] rounded-full">
+                            <div className="w-full h-full flex items-center justify-center bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)] rounded-full">
                               <User className="h-4 w-4 md:h-5 md:w-5 text-gray-500 dark:text-gray-400" />
                             </div>
                           )
@@ -573,7 +643,7 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
           <div className="flex flex-col items-center justify-center min-w-[40px] md:min-w-[120px] h-auto md:h-full ml-2 md:ml-0 lg:ml-4">
             <div className="w-10 h-10 md:w-14 md:h-14 mb-1 md:mb-2 flex-shrink-0">
               <div className="relative w-full h-full">
-                <div className="absolute inset-0 rounded-full shadow-md overflow-hidden bg-white border-2 border-[var(--azul)] dark:border-[var(--rojo)]">
+                <div className="absolute inset-0 rounded-full shadow-md overflow-hidden bg-white border-2 border-[var(--primary)] dark:border-[var(--secondary)]">
                   {leagueGame.coach?.profileImage ? (
                     <img
                       src={leagueGame.coach.profileImage || "/placeholder.svg"}
@@ -588,7 +658,7 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
                 </div>
               </div>
             </div>
-            <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--blanco)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
+            <span className="text-[9px] md:text-xs font-bold text-black dark:text-[var(--white)] text-center max-w-[60px] md:max-w-[100px] leading-tight">
               {leagueGame.coach ? `DT: ${leagueGame.coach.fullName}` : "DT: ?"}
             </span>
           </div>
@@ -614,7 +684,7 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
         extraContentRight={
           !gameLogic.gameWon &&
           possiblePlayers.length > 0 && (
-            <div className="rounded-lg bg-[var(--rojo)] dark:bg-[var(--azul)] p-1">
+            <div className="rounded-lg bg-[var(--secondary)] dark:bg-[var(--primary)] p-1">
               <h3 className="text-base font-bold mb-1 text-white text-center">
                 Jugadores posibles para {leagueGame.currentLeague?.name}
               </h3>
@@ -702,6 +772,7 @@ export default function LeagueTeamGame({ clubId, homeUrl }) {
       onConfirmPosition={leagueGame.confirmPositionSelection}
       formatTime={gameLogic.formatTime}
       cachedPlayers={preloadedPlayers || []}
+      cachedCoaches={preloadedCoaches || []}
       validPlayersForCurrentClub={leagueGame.getValidPlayersForCurrentLeague()}
     />
   );

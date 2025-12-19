@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { debugLog } from "@/utils/debugLogger";
 import { toast } from "sonner";
 
 export function useGameLogic({
@@ -30,6 +31,11 @@ export function useGameLogic({
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
+            // debugLog.gameEvent("timer", "end", {
+            //   gameMode: "time",
+            //   totalTime: timeLimit,
+            //   timeLeft: prev,
+            // });
             endGame(false);
             toast.error("¡Se acabó el tiempo!");
             return 0;
@@ -51,6 +57,13 @@ export function useGameLogic({
   }, []);
 
   const startGame = useCallback(() => {
+    // debugLog.gameEvent("game", "start", {
+    //   gameMode,
+    //   timeLimit,
+    //   initialLives,
+    //   timestamp: new Date().toISOString(),
+    // });
+
     setGameStarted(true);
     setGameOver(false);
     setGameWon(false);
@@ -68,13 +81,25 @@ export function useGameLogic({
 
   const endGame = useCallback(
     (won, extraData) => {
-      setGameOver(true);
-      setGameWon(won);
-      if (timerRef.current) clearInterval(timerRef.current);
-
       const finalTime = gameStartTime
         ? Math.floor((Date.now() - gameStartTime.getTime()) / 1000)
         : 0;
+
+      // debugLog.gameEvent("game", "end", {
+      //   won,
+      //   finalTime,
+      //   score,
+      //   attempts,
+      //   livesRemaining: lives,
+      //   totalQuestions,
+      //   gameMode,
+      //   duration: `${finalTime}s`,
+      // });
+      // debugLog.performanceMetric("gameSessionDuration", finalTime, "seconds");
+
+      setGameOver(true);
+      setGameWon(won);
+      if (timerRef.current) clearInterval(timerRef.current);
 
       const stats = {
         finalTime,
@@ -93,6 +118,12 @@ export function useGameLogic({
 
   const handleCorrectAnswer = useCallback(
     (totalQuestionsCount) => {
+      // debugLog.gameEvent("answer", "correct", {
+      //   currentScore: score + 1,
+      //   totalQuestions: totalQuestionsCount,
+      //   newStreak: score + 1,
+      // });
+
       setScore((prev) => prev + 1);
       setAttempts((prev) => prev + 1);
 
@@ -117,6 +148,13 @@ export function useGameLogic({
 
   const handleIncorrectAnswer = useCallback(
     (message) => {
+      // debugLog.gameEvent("answer", "incorrect", {
+      //   gameMode,
+      //   livesRemaining: gameMode === "lives" ? lives - 1 : null,
+      //   message,
+      //   attempts: attempts + 1,
+      // });
+
       setAttempts((prev) => prev + 1);
 
       if (gameMode === "lives") {
@@ -133,6 +171,9 @@ export function useGameLogic({
         setTimeout(() => {
           setShowFeedback(null);
           if (newLives <= 0) {
+            // debugLog.gameEvent("lives", "exhausted", {
+            //   totalAttempts: attempts + 1,
+            // });
             endGame(false);
             toast.error("¡Se acabaron las vidas! Game Over");
           }
@@ -147,10 +188,16 @@ export function useGameLogic({
         setTimeout(() => setShowFeedback(null), 1500);
       }
     },
-    [gameMode, lives, endGame]
+    [gameMode, lives, endGame, attempts]
   );
 
   const resetGame = useCallback(() => {
+    // debugLog.gameEvent("game", "reset", {
+    //   gameMode,
+    //   timeLimit,
+    //   initialLives,
+    // });
+
     if (timerRef.current) clearInterval(timerRef.current);
 
     setGameStarted(false);
@@ -163,7 +210,7 @@ export function useGameLogic({
     setAttempts(0);
     setTotalQuestions(0);
     setShowFeedback(null);
-  }, [timeLimit, initialLives]);
+  }, [timeLimit, initialLives, gameMode]);
 
   const formatTime = useCallback((seconds) => {
     const mins = Math.floor(seconds / 60);

@@ -1,8 +1,26 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-// Store para guardar intentos localmente (sin sesión)
-// Usa el mismo formato que gameAttemptsStore para consistencia
+const normalizeAttempt = (attempt) => {
+  if (!attempt) return null;
+  return {
+    _id: attempt._id || undefined,
+    gameType: attempt.gameType,
+    won: attempt.won ?? false,
+    score: attempt.score ?? 0,
+    streak: attempt.streak ?? 0,
+    recordScore: attempt.recordScore ?? attempt.score ?? 0,
+    timeUsed: attempt.timeUsed ?? 0,
+    livesRemaining: attempt.livesRemaining ?? 0,
+    date: attempt.date || new Date().toISOString(),
+    gameData: attempt.gameData ?? {},
+    gameMode: attempt.gameMode ?? "daily",
+    clubId: attempt.clubId || null,
+    createdAt: attempt.createdAt,
+    updatedAt: attempt.updatedAt,
+  };
+};
+
 export const useLocalGameAttemptsStore = create(
   persist(
     (set, get) => ({
@@ -26,9 +44,7 @@ export const useLocalGameAttemptsStore = create(
                 ...clubData,
                 lastAttempts: {
                   ...clubData.lastAttempts,
-                  [gameType]: {
-                    ...attemptData,
-                  },
+                  [gameType]: normalizeAttempt(attemptData),
                 },
                 totalGames: clubData.totalGames + 1,
                 lastUpdated: new Date().toISOString(),
@@ -36,6 +52,25 @@ export const useLocalGameAttemptsStore = create(
             },
           };
         }),
+
+      setLocalLastAttempts: (clubId, data) =>
+        set((state) => ({
+          clubs: {
+            ...state.clubs,
+            [clubId || "null"]: {
+              lastAttempts: Object.entries(data.lastAttempts || {}).reduce(
+                (acc, [gameType, attempt]) => {
+                  acc[gameType] = normalizeAttempt(attempt);
+                  return acc;
+                },
+                {}
+              ),
+              totalGames: data.totalGames || 0,
+              lastUpdated: data.lastUpdated || new Date().toISOString(),
+            },
+          },
+          error: null,
+        })),
 
       getLocalLastAttempt: (clubId, gameType) => {
         const { clubs } = get();
@@ -68,17 +103,17 @@ export const useLocalGameAttemptsStore = create(
         return attempt?.recordScore || attempt?.score || 0;
       },
 
+      getLocalClubData: (clubId) => {
+        const { clubs } = get();
+        return clubs[clubId || "null"] || null;
+      },
+
       clearLocalAttempts: () =>
         set({
           clubs: {},
           isLoading: false,
           error: null,
         }),
-
-      getLocalClubData: (clubId) => {
-        const { clubs } = get();
-        return clubs[clubId || "null"] || null;
-      },
     }),
     {
       name: "local-game-attempts-storage",

@@ -72,15 +72,15 @@ export default function ClubsPage() {
 
   // Obtener datos únicos para filtros
   const uniqueCountries = useMemo(
-    () => Array.from(new Set(clubs.map((club) => club.league.country))).sort(),
+    () => Array.from(new Set(clubs.map((club) => club.league?.country))).sort(),
     [clubs]
   );
 
   const uniqueLeagues = useMemo(
     () =>
-      Array.from(new Set(clubs.map((club) => club.league._id)))
+      Array.from(new Set(clubs.map((club) => club.league?._id)))
         .map((leagueId) => {
-          const club = clubs.find((c) => c.league._id === leagueId);
+          const club = clubs.find((c) => c.league?._id === leagueId);
           return club?.league;
         })
         .filter(Boolean),
@@ -260,7 +260,7 @@ export default function ClubsPage() {
                       color: isDarkMode ? "var(--gris)" : "var(--gris-oscuro)",
                     }}
                   >
-                    {club.league.name}
+                    {club.league?.name}
                   </p>
                 </div>
               </div>
@@ -292,10 +292,10 @@ export default function ClubsPage() {
                     : "var(--gris-claro)",
                 }}
               >
-                {club.league.logoUrl && (
+                {club.league?.logoUrl && (
                   <img
-                    src={club.league.logoUrl || "/placeholder.svg"}
-                    alt={club.league.name}
+                    src={club.league?.logoUrl || "/placeholder.svg"}
+                    alt={club.league?.name}
                     className="w-5 h-5 object-contain"
                   />
                 )}
@@ -306,7 +306,7 @@ export default function ClubsPage() {
                       color: isDarkMode ? "var(--blanco)" : "var(--negro)",
                     }}
                   >
-                    {club.league.name}
+                    {club.league?.name}
                   </div>
                   <div
                     className="text-xs"
@@ -314,7 +314,7 @@ export default function ClubsPage() {
                       color: isDarkMode ? "var(--gris)" : "var(--gris-oscuro)",
                     }}
                   >
-                    {club.league.country}
+                    {club.league?.country}
                   </div>
                 </div>
               </div>
