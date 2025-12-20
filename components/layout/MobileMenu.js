@@ -49,7 +49,7 @@ export default function MobileMenu({ isDarkMode, onToggleDarkMode }) {
     setIsOpen(false);
 
     try {
-      await fetch(`${API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

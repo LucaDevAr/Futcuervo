@@ -33,7 +33,7 @@ export default function UserMenu() {
 
   const handleLogoutClick = async () => {
     try {
-      await fetch(`${API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -45,7 +45,7 @@ export default function UserMenu() {
     localStorage.removeItem("user");
     localStorage.removeItem("game-attempts-storage");
     setIsMenuOpen(false);
-    // window.location.href = "/";
+    window.location.href = "/";
   };
 
   const userIcon = useMemo(() => {
