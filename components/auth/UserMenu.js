@@ -29,9 +29,11 @@ export default function UserMenu() {
 
   const handleUserClick = () => setIsMenuOpen(!isMenuOpen);
 
+  const API_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
   const handleLogoutClick = async () => {
     try {
-      await fetch("http://localhost:5000/api/auth/logout", {
+      await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

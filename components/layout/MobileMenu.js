@@ -43,11 +43,13 @@ export default function MobileMenu({ isDarkMode, onToggleDarkMode }) {
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
+  const API_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
   const handleLogout = async () => {
     setIsOpen(false);
 
     try {
-      await fetch("http://localhost:5000/api/auth/logout", {
+      await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
