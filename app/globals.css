@@ -4,6 +4,8 @@
 
 body {
   font-family: Arial, Helvetica, sans-serif;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 /* Utilidades personalizadas */

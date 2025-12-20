@@ -93,9 +93,9 @@ export default async function RootLayout({ children }) {
       <body>
         <ClientProviders hasAccessToken={!!access} hasRefreshToken={!!refresh}>
           {children}
+          <GoogleAdsScript />
         </ClientProviders>
 
-        <GoogleAdsScript />
         {/* 👇 Agregamos el componente de analíticas de Vercel */}
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>

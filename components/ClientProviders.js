@@ -363,9 +363,7 @@ export default function ClientProviders({
         {!isAdminRoute && !isAuthRoute && navbarProps && (
           <Navbar {...navbarProps} />
         )}
-        <main className="pt-[56px] md:pt-[64px] min-h-screen h-full">
-          {children}
-        </main>
+        <main className="pt-[56px] md:pt-[64px] h-full">{children}</main>
       </div>
     </div>
   );
