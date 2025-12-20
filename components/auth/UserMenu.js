@@ -45,7 +45,7 @@ export default function UserMenu() {
     localStorage.removeItem("user");
     localStorage.removeItem("game-attempts-storage");
     setIsMenuOpen(false);
-    window.location.href = "/";
+    // window.location.href = "/";
   };
 
   const userIcon = useMemo(() => {
