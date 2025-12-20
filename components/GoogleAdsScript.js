@@ -1,29 +1,22 @@
 "use client";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
-import { useEffect, useState } from "react";
 
 export function GoogleAdsScript() {
   const pathname = usePathname();
-  const [shouldLoad, setShouldLoad] = useState(false);
+  const excludePaths = [
+    "/admin",
+    "/auth",
+    "/404",
+    "/not-found",
+    "/unauthorized",
+    "/api",
+    "/games",
+  ];
 
-  useEffect(() => {
-    const excludePaths = [
-      "/admin",
-      "/auth",
-      "/404",
-      "/not-found",
-      "/unauthorized",
-      "/api",
-      "/futcuervo/games",
-      "/futmerengue/games",
-    ];
+  const shouldShowAds = !excludePaths.some((path) => pathname.startsWith(path));
 
-    const canLoad = !excludePaths.some((path) => pathname.startsWith(path));
-    setShouldLoad(canLoad);
-  }, [pathname]);
-
-  if (!shouldLoad) return null;
+  if (!shouldShowAds) return null;
 
   return (
     <Script

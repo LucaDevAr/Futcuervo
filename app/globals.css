@@ -437,3 +437,11 @@ input[type="range"]::-moz-range-thumb {
 .dark ::-webkit-scrollbar-thumb {
   background: var(--primary-dark);
 }
+
+/* Google auto ads */
+.google-auto-placed {
+  display: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+}
