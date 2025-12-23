@@ -6,6 +6,9 @@ const DEBUG =
 export const useUserStore = create((set) => ({
   user: null,
   checked: false,
+  hasAuthHint: false, // ✅ nuevo estado
+
+  setHasAuthHint: (value) => set({ hasAuthHint: value }), // ✅ nueva función
 
   setUser: (u) => {
     if (DEBUG) console.log("%c[USER][setUser]", "color:#4ade80", u);
@@ -13,8 +16,6 @@ export const useUserStore = create((set) => ({
     const normalized = {
       ...u,
       points: u.points ?? 0,
-
-      // 👇 UNIFICAR el nombre SIEMPRE A clubMembers
       clubMembers: Array.isArray(u.clubMembers)
         ? u.clubMembers
         : Array.isArray(u.clubMemberships)

@@ -43,7 +43,6 @@ export default function RegisterForm() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al registrar");
-
       router.push("/"); // Redirigir al home
     } catch (err) {
       setError(err.message);
@@ -60,7 +59,7 @@ export default function RegisterForm() {
     <div className="w-full max-w-sm m-auto rounded-xl border-2 shadow-xl p-5 bg-[var(--background)] border-[var(--primary)] dark:border-[var(--secondary)] text-[var(--text)]">
       <div className="text-center mb-4">
         <img
-          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/futcuervo-logo-BVEl3yIsYZbvGKRzYTsnwYx4zjfB3m.png"
+          src="/images/futcuervo-logo.png"
           alt="FutCuervo"
           className="w-14 h-14 mx-auto mb-2"
         />

@@ -17,6 +17,7 @@ import {
   Globe,
   Settings,
   Gamepad2,
+  Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -28,6 +29,7 @@ import {
 import AdminLogoMenu from "@/components/admin/AdminLogoMenu";
 
 const menuItems = [
+  { icon: Home, label: "Home", href: "/", exact: true },
   { icon: BarChart3, label: "Dashboard", href: "/admin", exact: true },
   { icon: Gamepad2, label: "Juegos", href: "/admin/games" },
   { icon: Music, label: "Canciones", href: "/admin/songs" },

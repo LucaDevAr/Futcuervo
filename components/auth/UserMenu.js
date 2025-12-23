@@ -18,9 +18,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUserStore } from "@/stores/userStore";
+import { useSession } from "@/hooks/auth/useSession";
 
 export default function UserMenu() {
-  const user = useUserStore((state) => state.user);
+  useSession(); // 👈 listo
+  const user = useUserStore((s) => s.user);
   const clearUser = useUserStore((state) => state.clearUser);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);

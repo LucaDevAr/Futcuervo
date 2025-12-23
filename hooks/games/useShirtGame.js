@@ -10,6 +10,8 @@ import { useDailyGamesStore } from "@/stores/dailyGamesStore";
 import { debugLog } from "@/utils/debugLogger";
 import { useUserStore } from "@/stores/userStore";
 import { calculateStreak } from "@/utils/date";
+import { refreshAccessToken } from "@/services/api";
+import { performLogout } from "@/utils/auth";
 
 function normalizeString(str) {
   return str
@@ -88,64 +90,84 @@ export function useShirtGame({ gameMode, onGameEnd, clubId }) {
           date: new Date().toISOString(),
         };
 
+        // Guardado local si NO hay usuario
         if (!user) {
-          // Guardado local solamente cuando NO hay usuario
           localAttempts.updateAttempt("shirt", attemptData);
-          isSavingRef.current = false;
           return;
         }
 
-        debugLog.apiRequest(
-          "POST",
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/shirt/save`,
-          attemptData,
-          "useShirtGame"
-        );
+        // ------------------------
+        // Función interna para POST seguro
+        // ------------------------
+        const postAttempt = async () => {
+          try {
+            const res = await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/shirt/save`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(attemptData),
+              }
+            );
 
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/shirt/save`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(attemptData),
+            if (res.status === 401) {
+              // intento refresh token
+              const refreshResult = await refreshAccessToken();
+              console.log("refreshAccessToken result:", refreshResult);
+
+              if (refreshResult?.ok || refreshResult.status === 200) {
+                console.log("Retrying saveGameAttempt after token refresh");
+                // retry
+                const retryRes = await fetch(
+                  `${process.env.NEXT_PUBLIC_BASE_URL}/api/games/shirt/save`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify(attemptData),
+                  }
+                );
+
+                if (!retryRes.ok) {
+                  throw new Error(`Retry failed: ${retryRes.status}`);
+                }
+                return await retryRes.json();
+              } else {
+                console.log("Token refresh failed -> performLogout");
+                performLogout();
+                return null;
+              }
+            }
+
+            if (!res.ok) throw new Error(`Error al guardar: ${res.status}`);
+            return await res.json();
+          } catch (err) {
+            console.error("postAttempt error:", err);
+            throw err;
           }
-        );
+        };
 
-        if (!response.ok)
-          throw new Error(`Error al guardar: ${response.status}`);
+        const response = await postAttempt();
 
-        const { attempt: savedAttempt } = await response.json();
-        if (savedAttempt) {
+        if (response?.attempt) {
           gameAttemptsStore.updateAttempt(clubId, "shirt", {
             ...attemptData,
-            streak: savedAttempt.streak, // Use backend-calculated streak
-            _id: savedAttempt._id,
-            createdAt: savedAttempt.createdAt,
-            updatedAt: savedAttempt.updatedAt,
+            streak: response.attempt.streak,
+            _id: response.attempt._id,
+            createdAt: response.attempt.createdAt,
+            updatedAt: response.attempt.updatedAt,
           });
-          if (!user) {
-            localAttempts.updateAttempt("shirt", {
-              ...attemptData,
-              streak: savedAttempt.streak,
-              _id: savedAttempt._id,
-              createdAt: savedAttempt.createdAt,
-              updatedAt: savedAttempt.updatedAt,
-            });
-          }
-          console.log(
-            "[v0] LocalStorage updated with saved attempt, streak:",
-            savedAttempt.streak
-          );
         }
       } catch (error) {
         debugLog.apiError("saveGameAttempt", error, "useShirtGame");
+        setErrorMessage(error.message);
         console.error("Error saving game attempt:", error);
       } finally {
         isSavingRef.current = false;
       }
     },
-    [getLastAttempt, localAttempts, gameMode, clubId, gameAttemptsStore]
+    [getLastAttempt, localAttempts, gameMode, clubId, gameAttemptsStore, user]
   );
 
   const gameLogic = useGameLogic({

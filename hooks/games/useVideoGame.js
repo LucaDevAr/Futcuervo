@@ -125,7 +125,7 @@ export function useVideoGame({ gameMode = "normal", onGameEnd, clubId }) {
       try {
         setLoading(true);
 
-        const cached = getGame("video");
+        // const cached = getGame("video");
         if (cached) {
           debugLog.cacheHit("videoGame", `useVideoGame_${clubId || "global"}`);
           setVideoGame(cached);
@@ -155,7 +155,7 @@ export function useVideoGame({ gameMode = "normal", onGameEnd, clubId }) {
         }
 
         setVideoGame(data.game);
-        saveGame("video", data.game);
+        // saveGame("video", data.game);
       } catch (error) {
         debugLog.apiError("fetchVideoGame", error, "useVideoGame");
         console.error("Error cargando video game:", error);
@@ -166,7 +166,7 @@ export function useVideoGame({ gameMode = "normal", onGameEnd, clubId }) {
     };
 
     fetchVideoGame();
-  }, [clubId, getGame, saveGame]);
+  }, [clubId]);
 
   const initializeGame = useCallback(() => {
     if (!videoGame) return;

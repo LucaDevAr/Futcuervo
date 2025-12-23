@@ -82,7 +82,7 @@ export const gameStatsApi = {
       return response.data || null;
     } catch (error) {
       debugLog.errorTracking("getAllUserAttempts", error);
-      console.error("[v0] Error fetching all user attempts:", error);
+      console.error("[v0] Error fetching all user attempts: ", error);
       return null;
     }
   },

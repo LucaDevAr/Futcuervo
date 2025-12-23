@@ -1,31 +1,17 @@
 "use client";
 import { HomeStats } from "@/components/home/HomeStats";
 import Footer from "@/components/layout/Footer";
-import { useClubGames } from "@/hooks/games/useClubGames";
-import useUnifiedGameStats from "@/hooks/game-state/useUnifiedGameStats";
 import { ArrowLeft, Shield, Trophy, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import ClubSelector from "../ClubSelector";
 import Rankings from "../Rankings";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-export default function FutCuervoHome() {
+export default function FutCuervoHome({ clubId }) {
   const router = useRouter();
-  const clubId = "68429af7587b60bfbe49342b";
-  const { source, lastAttempts, totalGames, isLoading } =
-    useUnifiedGameStats(clubId); // 🔒 Si el source es server y no hay juegos, NO mostrar stats
-  const stats = source === "server" && totalGames === 0 ? null : lastAttempts;
-
-  const statsLoading = isLoading;
-  const error = null;
-
-  const gameItems = useClubGames("futcuervo");
   const [clubModalOpen, setClubModalOpen] = useState(false);
   const [rankingModalOpen, setRankingModalOpen] = useState(false);
-
-  const handleGameClick = (item) => {
-    router.push(item.path);
-  };
 
   return (
     <div className="bg-[var(--background)] text-[var(--text)] min-h-screen">
@@ -38,13 +24,13 @@ export default function FutCuervoHome() {
           {/* Botones Superiores */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 my-6">
             {/* Volver al Home */}
-            <button
+            <Link
               className="flex items-center gap-2 px-5 py-3 bg-[var(--primary)] dark:bg-[var(--secondary)] text-[var(--white)] rounded-lg shadow hover:opacity-90 transition"
-              onClick={() => router.push("/")}
+              href="/"
             >
               <ArrowLeft className="w-4 h-4" />
               Volver al Home
-            </button>
+            </Link>
 
             {/* Rankings (Deshabilitado) */}
             <button
@@ -65,15 +51,7 @@ export default function FutCuervoHome() {
             </button>
           </div>
 
-          <HomeStats
-            stats={stats}
-            totalGames={totalGames}
-            loading={statsLoading}
-            error={error}
-            onGameClick={handleGameClick}
-            gameItems={gameItems}
-            imageMode="white"
-          />
+          <HomeStats imageMode="white" clubId={clubId} />
 
           {/* CONTENIDO INFORMATIVO */}
           <div className="mt-10 max-w-3xl mx-auto text-center px-4 space-y-6 text-sm sm:text-base text-gray-700 dark:text-gray-300">

@@ -4,7 +4,14 @@ import { STREAK_GAMES } from "@/services/gameTypes";
 import { useDarkMode } from "@/hooks/ui/use-dark-mode";
 import { wasPlayedToday, getLocalDateString } from "@/utils/date";
 
-export function GameCard({ item, stats, onClick, index, imageMode = "white" }) {
+export function GameCard({
+  index,
+  item,
+  stats,
+  onClick,
+  imageMode = "white",
+  clubId,
+}) {
   const isDark = useDarkMode(); // ✅ usa tu hook personalizado
 
   // 🔹 Determinar el modo actual según el tema
@@ -71,7 +78,7 @@ export function GameCard({ item, stats, onClick, index, imageMode = "white" }) {
 
   return (
     <div
-      onClick={onClick}
+      onClick={() => onClick(item)}
       className={`
     aspect-square
     rounded-xl lg:rounded-2xl

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FcGoogle } from "react-icons/fc";
@@ -40,8 +40,6 @@ export default function LoginForm() {
         return;
       }
 
-      // ✅ Login OK → cookies seteadas
-      // 👉 ClientProviders se encargará de /auth/me y del estado global
       window.location.href = callbackUrl;
     } catch (err) {
       console.error("Login error:", err);
@@ -59,7 +57,7 @@ export default function LoginForm() {
     <div className="w-full max-w-sm rounded-xl border-2 shadow-xl m-auto p-5 bg-[var(--background)] border-[var(--primary)] dark:border-[var(--secondary)] text-[var(--text)]">
       <div className="text-center mb-4">
         <img
-          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/futcuervo-logo-BVEl3yIsYZbvGKRzYTsnwYx4zjfB3m.png"
+          src="/images/futcuervo-logo.png"
           alt="FutCuervo"
           className="w-14 h-14 mx-auto mb-2"
         />

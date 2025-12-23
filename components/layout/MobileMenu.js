@@ -16,12 +16,13 @@ import {
 } from "lucide-react";
 import DarkModeButton from "@/components/layout/DarkModeButton";
 import { useUserStore } from "@/stores/userStore";
+import { useSession } from "@/hooks/auth/useSession";
 
 export default function MobileMenu({ isDarkMode, onToggleDarkMode }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
-
+  useSession();
   const user = useUserStore((state) => state.user);
   const clearUser = useUserStore((state) => state.clearUser);
 

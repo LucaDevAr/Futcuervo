@@ -67,11 +67,11 @@ function Footer({
 
       <div className="relative z-10 w-full">
         <div className="flex flex-col space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-2">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-2 max-sm:w-full">
             {/* LOGO + TITLE */}
             <Link
               href={homeUrl}
-              className="flex items-center gap-3 cursor-pointer"
+              className="flex items-center gap-3 cursor-pointer max-sm:mb-10"
             >
               <div className="w-10 h-10 rounded-lg flex items-center justify-center">
                 <img src={logo} alt={`Logo ${title}`} />
@@ -81,8 +81,7 @@ function Footer({
               </span>
             </Link>
 
-            {/* 🔥 CUSTOMIZABLE "Hecho con..." */}
-            <div className="text-xs md:text-sm text-center flex items-center gap-1 absolute md:static left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0">
+            <div className="text-[0.7rem] md:text-sm text-center flex items-center gap-1 absolute md:static left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0 max-sm:top-14 max-sm:w-full justify-center">
               <span className="text-[var(--gris)]">Hecho con</span>
 
               <Heart

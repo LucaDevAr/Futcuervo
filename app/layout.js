@@ -2,7 +2,6 @@ import { GoogleAdsScript } from "@/components/GoogleAdsScript";
 import "./globals.css";
 import ClientProviders from "@/components/ClientProviders";
 import { Analytics } from "@vercel/analytics/react";
-import { cookies } from "next/headers";
 
 export const metadata = {
   title: "FutCuervo",
@@ -43,11 +42,6 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }) {
-  // Leer cookies (Next.js app router)
-  const cookieStore = await cookies();
-  const access = cookieStore.get("accessToken");
-  const refresh = cookieStore.get("refreshToken");
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -91,7 +85,7 @@ export default async function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/icons/futcuervo-512x512.png" />
       </head>
       <body>
-        <ClientProviders hasAccessToken={!!access} hasRefreshToken={!!refresh}>
+        <ClientProviders>
           {children}
           <GoogleAdsScript />
         </ClientProviders>

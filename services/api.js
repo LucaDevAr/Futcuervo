@@ -22,8 +22,18 @@ export const postLogout = async () => {
 };
 
 export const refreshAccessToken = async () => {
-  const res = await api.post("/auth/refresh");
-  return res.data;
+  try {
+    const res = await api.post("/auth/refresh");
+    console.log("refreshAccessToken response:", res);
+    return res.data;
+  } catch (err) {
+    console.log(
+      "refreshAccessToken error:",
+      err.response?.status,
+      err.response?.data
+    );
+    return { ok: false, status: err.response?.status || 500 };
+  }
 };
 
 export default api;
